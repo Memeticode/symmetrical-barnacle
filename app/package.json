@@ -1,8 +1,8 @@
 {
   "name": "geometric-interior-self-portrait",
   "private": true,
-  "version": "0.4.1",
-  "description": "Client-side generative self-portrait with simplified UI, seamless landmark looping, time-warping, 24fps export, and ZIP bundles.",
+  "version": "1.0.0",
+  "description": "Modular client-side generative self-portrait. ES modules, WebCodecs MP4 export, seamless spline looping, time-warp, motion blur, ZIP bundles.",
   "license": "MIT",
   "scripts": {
     "dev": "npx serve .",

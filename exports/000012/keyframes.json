@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Base One",
+    "note": "A brain at play.",
+    "aspects": {
+      "coherence": 0.78,
+      "tension": 0.32,
+      "recursion": 0.25,
+      "motion": 0.14,
+      "vulnerability": 0,
+      "radiance": 0.54
+    },
+    "title": "Measured Reflection, Quietly Bent",
+    "altText": "Title: Measured Reflection, Quietly Bent\n\nAlt-text (interpretive):\nA near-black luminous field carries a sparse set of geometric shards, arranged with clear symmetry with deliberate slippage.\nThe forms overlap without fully merging—edges that hold their separation—while a mostly stable structure with faint stress lines keeps the structure honest.\nAcross the surface, only a faint hint of directional flow like thought made visible: short paths that imply direction, then curve under revision.\n5 attractor nodes punctuate the composition, suggesting stable commitments that still radiate change.\nOverall mood: soft, steady glow; coherence under revision; connection and separateness held in the same geometry."
+  },
+  {
+    "name": "Base Two",
+    "note": "A brain at work.",
+    "aspects": {
+      "coherence": 0.07,
+      "tension": 1,
+      "recursion": 0.25,
+      "motion": 0,
+      "vulnerability": 0.64,
+      "radiance": 0.54
+    },
+    "title": "Unstable Mirror, Fractured",
+    "altText": "Title: Unstable Mirror, Fractured\n\nAlt-text (interpretive):\nA near-black luminous field carries a sparse set of geometric shards, arranged with loose symmetry, more suggestion than rule.\nThe forms overlap without fully merging—semi-permeable edges where overlaps accumulate—while visible fracture and purposeful misalignment keeps the structure honest.\nAcross the surface, only a faint hint of directional flow like thought made visible: short paths that imply direction, then curve under revision.\n6 attractor nodes punctuate the composition, suggesting stable commitments that still radiate change.\nOverall mood: soft, steady glow; coherence under revision; connection and separateness held in the same geometry."
+  }
+]

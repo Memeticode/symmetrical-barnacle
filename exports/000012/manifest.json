@@ -1,0 +1,26 @@
+{
+  "kind": "animation",
+  "export_kind": "video",
+  "seed": "green-blue-love-life-9234",
+  "fps": 24,
+  "duration_ms": 11000,
+  "total_frames": 264,
+  "time_warp_strength": 0.78,
+  "motion_blur": {
+    "enabled": true,
+    "decay": 0.18,
+    "add": 0.9
+  },
+  "landmarks": [
+    "Base One",
+    "Base Two"
+  ],
+  "generated_at": "2026-02-17T20:33:20.856Z",
+  "files": [
+    "animation.mp4",
+    "title.txt",
+    "alt-text.txt",
+    "keyframes.json",
+    "manifest.json"
+  ]
+}
