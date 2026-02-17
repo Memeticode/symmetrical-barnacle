@@ -5,7 +5,7 @@
 import { createRenderer } from './renderer.js';
 import { createMotionBlur } from './motion-blur.js';
 import { evalAspectsAt, TIME_WARP_STRENGTH } from './interpolation.js';
-import { loadProfiles, saveProfiles, refreshProfileSelect, ensureStarterProfiles, renderLoopList } from './profiles.js';
+import { loadProfiles, saveProfiles, deleteProfile, refreshProfileSelect, ensureStarterProfiles, renderLoopList } from './profiles.js';
 import { createAnimationController, preRenderFrames, exportFromBuffer, ANIM_FPS, MOTION_BLUR_ENABLED, MB_DECAY, MB_ADD } from './animation.js';
 import { packageStillZip, packageAnimZip } from './export.js';
 import { initTheme } from './theme.js';
@@ -24,7 +24,6 @@ const el = {
     animSection: document.getElementById('animModeSection'),
 
     seed: document.getElementById('seed'),
-    animSeed: document.getElementById('animSeed'),
 
     coherence: document.getElementById('coherence'),
     tension: document.getElementById('tension'),
@@ -44,7 +43,9 @@ const el = {
     profileName: document.getElementById('profileName'),
     saveProfile: document.getElementById('saveProfile'),
     renderStill: document.getElementById('renderStill'),
+    randomize: document.getElementById('randomize'),
     exportStillZip: document.getElementById('exportStillZip'),
+    profileGallery: document.getElementById('profileGallery'),
 
     profileSelect: document.getElementById('profileSelect'),
     addToLoop: document.getElementById('addToLoop'),
@@ -76,13 +77,18 @@ const renderer = createRenderer(canvas, ctx);
 const motionBlur = createMotionBlur(canvas, ctx, { decay: MB_DECAY, add: MB_ADD });
 
 /* ---------------------------
- * Thumbnail generator
+ * Thumbnail generator (full-resolution offscreen → dataURL → <img>)
  * ---------------------------
  */
-function renderThumbnail(seed, aspects, destCanvas) {
-    const destCtx = destCanvas.getContext('2d');
-    const tmpRenderer = createRenderer(destCanvas, destCtx);
-    tmpRenderer.renderWith(seed, aspects);
+const thumbOffscreen = document.createElement('canvas');
+thumbOffscreen.width = 1400;
+thumbOffscreen.height = 900;
+const thumbOffCtx = thumbOffscreen.getContext('2d');
+const thumbRenderer = createRenderer(thumbOffscreen, thumbOffCtx);
+
+function renderThumbnail(seed, aspects, destImg) {
+    thumbRenderer.renderWith(seed, aspects);
+    destImg.src = thumbOffscreen.toDataURL('image/png');
 }
 
 /* ---------------------------
@@ -172,6 +178,13 @@ function getLandmarkAspectsOrdered() {
     return arr;
 }
 
+function deriveAnimSeed() {
+    const landmarks = getLandmarkAspectsOrdered();
+    if (landmarks.length === 0) return 'anim-seed';
+    const combined = landmarks.map(l => l.seed || l.name).join('::');
+    return 'anim::' + combined;
+}
+
 function refreshLoopList() {
     const profiles = loadProfiles();
     renderLoopList(el.loopList, loopLandmarks, profiles, {
@@ -216,14 +229,6 @@ el.loopDuration.addEventListener('input', () => {
 });
 
 /* ---------------------------
- * Animation seed change
- * ---------------------------
- */
-el.animSeed.addEventListener('change', () => {
-    invalidateFrameBuffer();
-});
-
-/* ---------------------------
  * Mode switching
  * ---------------------------
  */
@@ -253,7 +258,7 @@ function setMode(mode) {
         const landmarks = getLandmarkAspectsOrdered();
         if (landmarks.length >= 2) {
             const aspects = evalAspectsAt(0.0, landmarks);
-            renderAndUpdate(el.animSeed.value.trim() || 'anim-seed', aspects);
+            renderAndUpdate(deriveAnimSeed(), aspects);
             motionBlur.apply();
         }
     }
@@ -295,8 +300,100 @@ el.saveProfile.addEventListener('click', () => {
     };
     saveProfiles(profiles);
     refreshProfileSelect(el.profileSelect);
+    refreshProfileGallery();
     toast(`Saved profile: ${name}`);
 });
+
+/* ---------------------------
+ * Randomize
+ * ---------------------------
+ */
+el.randomize.addEventListener('click', () => {
+    el.seed.value = Math.random().toString(36).slice(2, 10);
+    for (const id of ['coherence', 'tension', 'recursion', 'motion', 'vulnerability', 'radiance']) {
+        el[id].value = Math.random().toFixed(2);
+    }
+    renderStill();
+    toast('Randomized.');
+});
+
+/* ---------------------------
+ * Profile gallery (image mode)
+ * ---------------------------
+ */
+function refreshProfileGallery() {
+    const profiles = loadProfiles();
+    const names = Object.keys(profiles).sort((a, b) => a.localeCompare(b));
+    el.profileGallery.innerHTML = '';
+
+    if (names.length === 0) {
+        const d = document.createElement('div');
+        d.className = 'small';
+        d.textContent = 'No saved profiles yet.';
+        el.profileGallery.appendChild(d);
+        return;
+    }
+
+    for (const name of names) {
+        const p = profiles[name];
+        const card = document.createElement('div');
+        card.className = 'profile-card';
+
+        // Thumbnail
+        const thumbImg = document.createElement('img');
+        thumbImg.className = 'profile-thumb';
+        card.appendChild(thumbImg);
+        if (p.seed && p.aspects) {
+            const seed = p.seed;
+            const aspects = { ...p.aspects };
+            setTimeout(() => renderThumbnail(seed, aspects, thumbImg), 0);
+        }
+
+        // Body
+        const body = document.createElement('div');
+        body.className = 'profile-card-body';
+
+        const nm = document.createElement('div');
+        nm.className = 'profile-card-name';
+        nm.textContent = name;
+        body.appendChild(nm);
+
+        const actions = document.createElement('div');
+        actions.className = 'profile-card-actions';
+
+        const loadBtn = document.createElement('button');
+        loadBtn.textContent = 'Load';
+        loadBtn.addEventListener('click', () => {
+            if (p.seed) el.seed.value = p.seed;
+            if (p.note) el.note.value = p.note;
+            if (p.aspects) {
+                for (const [key, val] of Object.entries(p.aspects)) {
+                    if (el[key]) el[key].value = val;
+                }
+            }
+            el.profileName.value = name;
+            renderStill();
+            toast(`Loaded: ${name}`);
+        });
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'danger';
+        deleteBtn.textContent = '\u2715';
+        deleteBtn.title = 'Delete';
+        deleteBtn.addEventListener('click', () => {
+            deleteProfile(name);
+            refreshProfileSelect(el.profileSelect);
+            refreshProfileGallery();
+            toast(`Deleted: ${name}`);
+        });
+
+        actions.appendChild(loadBtn);
+        actions.appendChild(deleteBtn);
+        body.appendChild(actions);
+        card.appendChild(body);
+        el.profileGallery.appendChild(card);
+    }
+}
 
 /* ---------------------------
  * Animation mode controls
@@ -328,7 +425,6 @@ el.loadDemoLoop.addEventListener('click', () => {
     ];
     invalidateFrameBuffer();
     refreshLoopList();
-    el.animSeed.value = 'demo-unified-seed-001';
     motionBlur.clear();
     toast('Loaded demo loop.');
 });
@@ -351,7 +447,7 @@ el.renderAnim.addEventListener('click', async () => {
     el.playPause.disabled = true;
     el.exportAnimZip.disabled = true;
 
-    const seed = el.animSeed.value.trim() || 'anim-seed';
+    const seed = deriveAnimSeed();
 
     try {
         const frames = await preRenderFrames({
@@ -509,6 +605,7 @@ document.addEventListener('keydown', (e) => {
 initTheme(document.getElementById('themeSelect'));
 ensureStarterProfiles();
 refreshProfileSelect(el.profileSelect);
+refreshProfileGallery();
 updateAspectLabels(readAspectsFromUI());
 renderStill();
 refreshLoopList();

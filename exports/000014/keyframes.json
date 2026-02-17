@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Orange Burst",
+    "note": "",
+    "aspects": {
+      "coherence": 0.85,
+      "tension": 0.71,
+      "recursion": 0.25,
+      "motion": 0.78,
+      "vulnerability": 0.64,
+      "radiance": 0.02
+    },
+    "title": "Dark Coherence: Axis of Certainty",
+    "altText": "A near-black luminous field carries a sparse set of geometric shards, arranged with strong, almost ritual symmetry.\nThe forms overlap without fully merging—semi-permeable edges where overlaps accumulate—while visible fracture and purposeful misalignment keeps the structure honest.\nAcross the surface, a prominent flow-field of vectors that bends and re-bends like thought made visible: short paths that imply direction, then curve under revision.\n6 attractor nodes punctuate the composition, suggesting stable commitments that still radiate change.\nOverall mood: low-light coherence; coherence under revision; connection and separateness held in the same geometry."
+  },
+  {
+    "name": "Purple Reign",
+    "note": "",
+    "aspects": {
+      "coherence": 0.77,
+      "tension": 0.8,
+      "recursion": 0.98,
+      "motion": 0.45,
+      "vulnerability": 0.69,
+      "radiance": 0.78
+    },
+    "title": "Soft-Boundary Fractured Recursive Field",
+    "altText": "A near-black luminous field carries densely layered, recursive geometry, arranged with clear symmetry with deliberate slippage.\nThe forms overlap without fully merging—semi-permeable edges where overlaps accumulate—while visible fracture and purposeful misalignment keeps the structure honest.\nAcross the surface, a soft vector field suggesting prediction and revision like thought made visible: short paths that imply direction, then curve under revision.\n10 attractor nodes punctuate the composition, suggesting stable commitments that still radiate change.\nOverall mood: bright, glassy radiance; coherence under revision; connection and separateness held in the same geometry."
+  }
+]

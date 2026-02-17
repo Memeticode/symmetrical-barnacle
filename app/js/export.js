@@ -26,6 +26,72 @@ export function canvasToPngBlob(canvas) {
     return new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
 }
 
+/* ── PNG tEXt chunk injection ── */
+
+function crc32Table() {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        t[n] = c;
+    }
+    return t;
+}
+
+const CRC_TABLE = crc32Table();
+
+function crc32(buf) {
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < buf.length; i++) crc = CRC_TABLE[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+function makePngTextChunk(keyword, text) {
+    const enc = new TextEncoder();
+    const kwBytes = enc.encode(keyword);
+    const txtBytes = enc.encode(text);
+    const dataLen = kwBytes.length + 1 + txtBytes.length; // keyword + null + text
+    const chunk = new Uint8Array(4 + 4 + dataLen + 4); // length + type + data + crc
+    const view = new DataView(chunk.buffer);
+    view.setUint32(0, dataLen);
+    chunk.set([0x74, 0x45, 0x58, 0x74], 4); // "tEXt"
+    chunk.set(kwBytes, 8);
+    chunk[8 + kwBytes.length] = 0; // null separator
+    chunk.set(txtBytes, 8 + kwBytes.length + 1);
+    const crcData = chunk.subarray(4, 4 + 4 + dataLen); // type + data
+    view.setUint32(4 + 4 + dataLen, crc32(crcData));
+    return chunk;
+}
+
+/**
+ * Inject PNG tEXt metadata chunks into a PNG blob.
+ * @param {Blob} pngBlob
+ * @param {{ keyword: string, text: string }[]} entries
+ * @returns {Promise<Blob>}
+ */
+export async function injectPngTextChunks(pngBlob, entries) {
+    const buf = await pngBlob.arrayBuffer();
+    const src = new Uint8Array(buf);
+    // Find IEND chunk: scan for "IEND" (0x49454E44) from the end
+    let iendPos = -1;
+    for (let i = src.length - 12; i >= 8; i--) {
+        if (src[i + 4] === 0x49 && src[i + 5] === 0x45 && src[i + 6] === 0x4E && src[i + 7] === 0x44) {
+            iendPos = i;
+            break;
+        }
+    }
+    if (iendPos < 0) return pngBlob; // couldn't find IEND, return unchanged
+
+    const chunks = entries.map(e => makePngTextChunk(e.keyword, e.text));
+    const totalExtra = chunks.reduce((s, c) => s + c.length, 0);
+    const out = new Uint8Array(src.length + totalExtra);
+    out.set(src.subarray(0, iendPos), 0);
+    let offset = iendPos;
+    for (const c of chunks) { out.set(c, offset); offset += c.length; }
+    out.set(src.subarray(iendPos), offset);
+    return new Blob([out], { type: 'image/png' });
+}
+
 export function safeName(s) {
     return (s || 'seed').replace(/[^a-z0-9_-]+/gi, '_').slice(0, 80);
 }
@@ -76,7 +142,11 @@ export async function packageStillZip(canvas, { seed, aspects, note, meta }) {
     const JSZip = window.JSZip;
     if (!JSZip) throw new Error('JSZip not loaded');
 
-    const pngBlob = await canvasToPngBlob(canvas);
+    const rawPng = await canvasToPngBlob(canvas);
+    const pngBlob = await injectPngTextChunks(rawPng, [
+        { keyword: 'Title', text: meta.title },
+        { keyword: 'Description', text: meta.altText },
+    ]);
     const ts = toIsoLocalish(new Date());
     const base = `still_${safeName(seed)}_${ts}`;
 

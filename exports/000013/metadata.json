@@ -1,0 +1,19 @@
+{
+  "kind": "still",
+  "seed": "f1cwsuq4",
+  "note": "",
+  "aspects": {
+    "coherence": 0.85,
+    "tension": 0.71,
+    "recursion": 0.25,
+    "motion": 0.78,
+    "vulnerability": 0.64,
+    "radiance": 0.02
+  },
+  "title": "Dark Coherence Sparse Geometry",
+  "generated_at": "2026-02-17T22:25:12.437Z",
+  "canvas": {
+    "width": 1400,
+    "height": 900
+  }
+}

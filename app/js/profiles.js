@@ -20,6 +20,12 @@ export function saveProfiles(profiles) {
     localStorage.setItem(LS_KEY, JSON.stringify(profiles, null, 2));
 }
 
+export function deleteProfile(name) {
+    const profiles = loadProfiles();
+    delete profiles[name];
+    saveProfiles(profiles);
+}
+
 export function refreshProfileSelect(selectEl) {
     const profiles = loadProfiles();
     const names = Object.keys(profiles).sort((a, b) => a.localeCompare(b));
@@ -74,7 +80,7 @@ export function ensureStarterProfiles() {
  * @param {string[]} landmarks - Array of profile names in order
  * @param {object} profiles - Current profiles object from loadProfiles()
  * @param {object} callbacks - { onReorder(newLandmarks), onRemove(index) }
- * @param {function|null} [renderThumbnail] - optional (seed, aspects, destCanvas) => void
+ * @param {function|null} [renderThumbnail] - optional (seed, aspects, destImg) => void
  */
 export function renderLoopList(listEl, landmarks, profiles, callbacks, renderThumbnail = null) {
     listEl.innerHTML = '';
@@ -95,16 +101,15 @@ export function renderLoopList(listEl, landmarks, profiles, callbacks, renderThu
         const left = document.createElement('div');
         left.className = 'item-left';
 
-        // Thumbnail canvas
+        // Thumbnail image (rendered at full resolution, scaled down via CSS)
         if (renderThumbnail && p?.seed && p?.aspects) {
-            const thumbCanvas = document.createElement('canvas');
-            thumbCanvas.width = 140;
-            thumbCanvas.height = 90;
-            left.appendChild(thumbCanvas);
+            const thumbImg = document.createElement('img');
+            thumbImg.className = 'loop-thumb';
+            left.appendChild(thumbImg);
             // Defer rendering to avoid blocking list assembly
             const seed = p.seed;
             const aspects = { ...p.aspects };
-            setTimeout(() => renderThumbnail(seed, aspects, thumbCanvas), 0);
+            setTimeout(() => renderThumbnail(seed, aspects, thumbImg), 0);
         }
 
         const textBlock = document.createElement('div');

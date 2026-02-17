@@ -36,9 +36,6 @@ export function generateAltText(aspects, nodeCount, title) {
     const tonePhrase = aspects.radiance > 0.75 ? "bright, glassy radiance" : aspects.radiance > 0.50 ? "soft, steady glow" : "low-light coherence";
 
     return [
-        `Title: ${title}`,
-        ``,
-        `Alt-text (interpretive):`,
         `A near-black luminous field carries ${recursionPhrase}, arranged with ${coherencePhrase}.`,
         `The forms overlap without fully merging—${boundaryPhrase}—while ${tensionPhrase} keeps the structure honest.`,
         `Across the surface, ${motionPhrase} like thought made visible: short paths that imply direction, then curve under revision.`,
