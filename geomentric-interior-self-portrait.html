@@ -112,7 +112,10 @@
       (3) a few attractor nodes (stability under revision).
     </div>
 
+    <div class="alt" id="titleText" style="font-weight:600; font-size:13px; margin-bottom:8px;"></div>
+
     <div class="alt" id="altText" aria-label="Generated alt text"></div>
+
   </aside>
 
   <main class="stage">
@@ -407,6 +410,10 @@ function renderPortrait() {
 
   // Alt-text
   el.altText.textContent = generateAltText(p, nodes.length, baseHue);
+
+  // Title
+  document.getElementById("titleText").textContent = generateTitle(p);
+
 }
 
 function addGrain(rng, amount=0.05) {
@@ -463,6 +470,49 @@ function generateAltText(p, nodeCount, baseHue) {
     `${nodeCount} bright attractor nodes punctuate the composition, suggesting stable commitments that still radiate change.`,
     `Overall mood: coherence under revision; connection and separateness held in the same geometry.`
   ].join("\n");
+}
+
+function generateTitle(p) {
+  const coherence = p.symmetry;
+  const tension = p.fracture;
+  const density = p.recursion;
+  const prediction = p.flow;
+  const lum = p.lum;
+
+  const coherenceWord =
+    coherence > 0.85 ? "Axis of Certainty" :
+    coherence > 0.65 ? "Measured Reflection" :
+    "Unstable Mirror";
+
+  const tensionWord =
+    tension > 0.7 ? "Fractured" :
+    tension > 0.4 ? "Under Tension" :
+    "Quietly Bent";
+
+  const densityWord =
+    density > 0.7 ? "Recursive Field" :
+    density > 0.4 ? "Layered Model" :
+    "Sparse Geometry";
+
+  const predictionWord =
+    prediction > 0.7 ? "Predictive Drift" :
+    prediction > 0.4 ? "Directional Echo" :
+    "Latent Motion";
+
+  const toneWord =
+    lum > 0.75 ? "Luminous" :
+    lum > 0.5 ? "Soft Radiance" :
+    "Dark Coherence";
+
+  const structures = [
+    `${toneWord}: ${coherenceWord}`,
+    `${tensionWord} ${densityWord}`,
+    `${predictionWord} Across ${coherenceWord}`,
+    `${densityWord} in ${toneWord}`,
+    `${coherenceWord}, ${tensionWord}`
+  ];
+
+  return structures[Math.floor(Math.random() * structures.length)];
 }
 
 /** ---------------------------
