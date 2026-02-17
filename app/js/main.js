@@ -6,8 +6,9 @@ import { createRenderer } from './renderer.js';
 import { createMotionBlur } from './motion-blur.js';
 import { evalAspectsAt, TIME_WARP_STRENGTH } from './interpolation.js';
 import { loadProfiles, saveProfiles, refreshProfileSelect, ensureStarterProfiles, renderLoopList } from './profiles.js';
-import { createAnimationController, exportAnimation, ANIM_FPS, MOTION_BLUR_ENABLED, MB_DECAY, MB_ADD } from './animation.js';
+import { createAnimationController, preRenderFrames, exportFromBuffer, ANIM_FPS, MOTION_BLUR_ENABLED, MB_DECAY, MB_ADD } from './animation.js';
 import { packageStillZip, packageAnimZip } from './export.js';
+import { initTheme } from './theme.js';
 
 /* ---------------------------
  * DOM references
@@ -50,6 +51,7 @@ const el = {
     clearLoop: document.getElementById('clearLoop'),
     loadDemoLoop: document.getElementById('loadDemoLoop'),
     loopList: document.getElementById('loopList'),
+    renderAnim: document.getElementById('renderAnim'),
     playPause: document.getElementById('playPause'),
     exportAnimZip: document.getElementById('exportAnimZip'),
     progressBar: document.getElementById('progressBar'),
@@ -60,6 +62,10 @@ const el = {
     titleText: document.getElementById('titleText'),
     altText: document.getElementById('altText'),
     toast: document.getElementById('toast'),
+
+    artistStatement: document.getElementById('artistStatement'),
+    artistModal: document.getElementById('artistModal'),
+    artistModalClose: document.getElementById('artistModalClose'),
 };
 
 /* ---------------------------
@@ -70,11 +76,51 @@ const renderer = createRenderer(canvas, ctx);
 const motionBlur = createMotionBlur(canvas, ctx, { decay: MB_DECAY, add: MB_ADD });
 
 /* ---------------------------
+ * Thumbnail generator
+ * ---------------------------
+ */
+function renderThumbnail(seed, aspects, destCanvas) {
+    const destCtx = destCanvas.getContext('2d');
+    const tmpRenderer = createRenderer(destCanvas, destCtx);
+    tmpRenderer.renderWith(seed, aspects);
+}
+
+/* ---------------------------
  * State
  * ---------------------------
  */
 let loopLandmarks = [];
 let loopDurationMs = 30_000;
+
+const frameBuffer = {
+    frames: [],
+    rendered: false,
+    durationMs: 0,
+    seed: '',
+    rendering: false,
+};
+
+/* ---------------------------
+ * Frame buffer management
+ * ---------------------------
+ */
+function invalidateFrameBuffer() {
+    animController.stop();
+    for (const bm of frameBuffer.frames) {
+        try { bm.close(); } catch { /* ignore */ }
+    }
+    frameBuffer.frames = [];
+    frameBuffer.rendered = false;
+    frameBuffer.durationMs = 0;
+    frameBuffer.seed = '';
+
+    el.playPause.disabled = true;
+    el.playPause.textContent = 'Play';
+    el.exportAnimZip.disabled = true;
+    el.renderAnim.disabled = false;
+    el.renderAnim.textContent = 'Render';
+    el.progressBar.style.width = '0%';
+}
 
 /* ---------------------------
  * Helpers
@@ -131,13 +177,15 @@ function refreshLoopList() {
     renderLoopList(el.loopList, loopLandmarks, profiles, {
         onReorder(newLandmarks) {
             loopLandmarks = newLandmarks;
+            invalidateFrameBuffer();
             refreshLoopList();
         },
         onRemove(idx) {
             loopLandmarks.splice(idx, 1);
+            invalidateFrameBuffer();
             refreshLoopList();
         },
-    });
+    }, renderThumbnail);
 }
 
 /* ---------------------------
@@ -145,15 +193,11 @@ function refreshLoopList() {
  * ---------------------------
  */
 const animController = createAnimationController({
-    renderer,
-    motionBlur,
-    getLandmarks: getLandmarkAspectsOrdered,
-    getAnimSeed: () => el.animSeed.value.trim() || 'anim-seed',
-    getLoopDurationMs: () => loopDurationMs,
-    onFrame(tNorm, meta) {
+    drawFrame(bitmap) {
+        ctx.drawImage(bitmap, 0, 0);
+    },
+    onFrame(tNorm) {
         el.progressBar.style.width = `${(tNorm * 100).toFixed(2)}%`;
-        el.titleText.textContent = meta.title;
-        el.altText.textContent = meta.altText;
     },
     onPlayStateChange(playing) {
         el.playPause.textContent = playing ? 'Pause' : 'Play';
@@ -168,6 +212,15 @@ el.loopDuration.addEventListener('input', () => {
     const secs = parseInt(el.loopDuration.value, 10);
     loopDurationMs = secs * 1000;
     el.durationLabel.textContent = `${secs}s`;
+    invalidateFrameBuffer();
+});
+
+/* ---------------------------
+ * Animation seed change
+ * ---------------------------
+ */
+el.animSeed.addEventListener('change', () => {
+    invalidateFrameBuffer();
 });
 
 /* ---------------------------
@@ -253,14 +306,15 @@ el.addToLoop.addEventListener('click', () => {
     const name = el.profileSelect.value;
     if (!name) { toast('Select a profile.'); return; }
     loopLandmarks.push(name);
+    invalidateFrameBuffer();
     refreshLoopList();
     toast(`Added: ${name}`);
 });
 
 el.clearLoop.addEventListener('click', () => {
     loopLandmarks = [];
+    invalidateFrameBuffer();
     refreshLoopList();
-    el.progressBar.style.width = '0%';
     motionBlur.clear();
     toast('Cleared.');
 });
@@ -272,21 +326,87 @@ el.loadDemoLoop.addEventListener('click', () => {
         'Night Drift (Starter)',
         'Tender Permeability (Starter)',
     ];
+    invalidateFrameBuffer();
     refreshLoopList();
     el.animSeed.value = 'demo-unified-seed-001';
     motionBlur.clear();
     toast('Loaded demo loop.');
 });
 
-el.playPause.addEventListener('click', () => {
+/* ---------------------------
+ * Render animation (pre-render all frames)
+ * ---------------------------
+ */
+el.renderAnim.addEventListener('click', async () => {
     const landmarks = getLandmarkAspectsOrdered();
     if (landmarks.length < 2) { toast('Add 2+ landmarks.'); return; }
+
+    // Stop any current playback
+    animController.stop();
+    invalidateFrameBuffer();
+
+    frameBuffer.rendering = true;
+    el.renderAnim.disabled = true;
+    el.renderAnim.textContent = 'Rendering...';
+    el.playPause.disabled = true;
+    el.exportAnimZip.disabled = true;
+
+    const seed = el.animSeed.value.trim() || 'anim-seed';
+
+    try {
+        const frames = await preRenderFrames({
+            canvas,
+            renderer,
+            motionBlur,
+            landmarks,
+            seed,
+            durationMs: loopDurationMs,
+            fps: ANIM_FPS,
+            onProgress(done, total) {
+                el.progressBar.style.width = `${((done / total) * 100).toFixed(1)}%`;
+            },
+            isCancelled() { return !frameBuffer.rendering; },
+        });
+
+        if (!frames) {
+            toast('Render cancelled.');
+            return;
+        }
+
+        frameBuffer.frames = frames;
+        frameBuffer.rendered = true;
+        frameBuffer.durationMs = loopDurationMs;
+        frameBuffer.seed = seed;
+
+        el.playPause.disabled = false;
+        el.exportAnimZip.disabled = false;
+        el.renderAnim.textContent = 'Re-render';
+
+        toast(`Rendered ${frames.length} frames.`);
+    } catch (err) {
+        console.error(err);
+        toast('Render failed.');
+    } finally {
+        frameBuffer.rendering = false;
+        el.renderAnim.disabled = false;
+    }
+});
+
+/* ---------------------------
+ * Play/Pause (from buffer)
+ * ---------------------------
+ */
+el.playPause.addEventListener('click', () => {
+    if (!frameBuffer.rendered || frameBuffer.frames.length === 0) {
+        toast('Render the animation first.');
+        return;
+    }
 
     if (animController.isPlaying()) {
         animController.pause();
     } else {
         el.progressBar.style.width = '0%';
-        animController.play();
+        animController.playFromBuffer(frameBuffer.frames, frameBuffer.durationMs);
     }
 });
 
@@ -318,26 +438,27 @@ el.exportStillZip.addEventListener('click', async () => {
 el.exportAnimZip.addEventListener('click', async () => {
     if (!window.JSZip) { toast('JSZip missing (offline?).'); return; }
 
-    const landmarks = getLandmarkAspectsOrdered();
-    if (landmarks.length < 2) { toast('Add 2+ landmarks.'); return; }
+    if (!frameBuffer.rendered || frameBuffer.frames.length === 0) {
+        toast('Render the animation first.');
+        return;
+    }
 
     // Stop playback during export
     animController.stop();
 
-    const seed = el.animSeed.value.trim() || 'anim-seed';
+    const seed = frameBuffer.seed;
+    const landmarks = getLandmarkAspectsOrdered();
 
     try {
-        toast('Rendering animation...');
+        toast('Encoding animation...');
         el.exportAnimZip.disabled = true;
 
-        const rec = await exportAnimation({
-            canvas,
-            renderer,
-            motionBlur,
-            landmarks,
-            seed,
-            durationMs: loopDurationMs,
+        const rec = await exportFromBuffer({
+            frames: frameBuffer.frames,
             fps: ANIM_FPS,
+            durationMs: frameBuffer.durationMs,
+            seed,
+            canvas,
             onProgress(tNorm) {
                 el.progressBar.style.width = `${(tNorm * 100).toFixed(2)}%`;
             },
@@ -359,9 +480,33 @@ el.exportAnimZip.addEventListener('click', async () => {
 });
 
 /* ---------------------------
+ * Artist Statement modal
+ * ---------------------------
+ */
+function openArtistModal() {
+    el.artistModal.classList.remove('hidden');
+}
+
+function closeArtistModal() {
+    el.artistModal.classList.add('hidden');
+}
+
+el.artistStatement.addEventListener('click', openArtistModal);
+el.artistModalClose.addEventListener('click', closeArtistModal);
+el.artistModal.addEventListener('click', (e) => {
+    if (e.target === el.artistModal) closeArtistModal();
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !el.artistModal.classList.contains('hidden')) {
+        closeArtistModal();
+    }
+});
+
+/* ---------------------------
  * Init
  * ---------------------------
  */
+initTheme(document.getElementById('themeSelect'));
 ensureStarterProfiles();
 refreshProfileSelect(el.profileSelect);
 updateAspectLabels(readAspectsFromUI());

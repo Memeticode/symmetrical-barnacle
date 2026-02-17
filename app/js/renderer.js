@@ -3,6 +3,11 @@
  * Returns { renderWith } bound to a specific canvas/context pair.
  * renderWith is pure output — it draws to the canvas and returns metadata,
  * but does NOT touch the DOM (title/alt text updates are the caller's job).
+ *
+ * Each visual phase uses an independent sub-RNG seeded from the base seed.
+ * This prevents count changes (e.g. nodeCount stepping from 7 to 8) from
+ * cascading downstream and reshuffling the entire visual structure.
+ * Fractional count blending fades the boundary element in/out smoothly.
  */
 
 import { clamp01, lerp, xmur3, mulberry32 } from './prng.js';
@@ -92,11 +97,19 @@ export function createRenderer(canvas, ctx) {
      * @returns {{ title: string, altText: string, nodeCount: number, derived: object }}
      */
     function renderWith(seedStr, aspects) {
-        const seedFn = xmur3(seedStr);
-        const rng = mulberry32(seedFn());
+        // Independent sub-RNGs per visual phase
+        const seedFn  = xmur3(seedStr);
+        const baseRng = mulberry32(seedFn());
+        const paramsRng = mulberry32(Math.floor(baseRng() * 0x100000000));
+        const titleRng  = mulberry32(Math.floor(baseRng() * 0x100000000));
+        const glowRng   = mulberry32(Math.floor(baseRng() * 0x100000000));
+        const nodeRng   = mulberry32(Math.floor(baseRng() * 0x100000000));
+        const shardRng  = mulberry32(Math.floor(baseRng() * 0x100000000));
+        const flowRng   = mulberry32(Math.floor(baseRng() * 0x100000000));
+        const grainRng  = mulberry32(Math.floor(baseRng() * 0x100000000));
 
-        const p = deriveParams(aspects, rng);
-        const title = generateTitle(aspects, rng);
+        const p = deriveParams(aspects, paramsRng);
+        const title = generateTitle(aspects, titleRng);
 
         const W = canvas.width, H = canvas.height;
         const cx = W * 0.5, cy = H * 0.52;
@@ -104,26 +117,32 @@ export function createRenderer(canvas, ctx) {
         const bg = hsl(p.hue, 35, lerp(5, 12, p.lum), 1);
         clearBg(bg);
 
-        // Field glow
+        // Field glow — fractional count blending
         ctx.save();
         ctx.globalCompositeOperation = 'screen';
-        const glowCount = 5 + Math.floor(lerp(1, 8, aspects.radiance));
-        for (let i = 0; i < glowCount; i++) {
-            const x = lerp(W * 0.20, W * 0.80, rng());
-            const y = lerp(H * 0.22, H * 0.78, rng());
-            const r = lerp(220, 560, rng()) * lerp(0.7, 1.1, aspects.radiance);
-            const alpha = lerp(0.02, 0.10, aspects.radiance) * (0.65 + 0.7 * rng());
-            softGlow(x, y, r, alpha);
+        const glowCountF = 5 + lerp(1, 8, aspects.radiance);
+        const glowFloor = Math.floor(glowCountF);
+        const glowFrac = glowCountF - glowFloor;
+        for (let i = 0; i <= glowFloor; i++) {
+            const isLast = i === glowFloor;
+            const x = lerp(W * 0.20, W * 0.80, glowRng());
+            const y = lerp(H * 0.22, H * 0.78, glowRng());
+            const r = lerp(220, 560, glowRng()) * lerp(0.7, 1.1, aspects.radiance);
+            const alpha = lerp(0.02, 0.10, aspects.radiance) * (0.65 + 0.7 * glowRng());
+            softGlow(x, y, r, isLast ? alpha * glowFrac : alpha);
         }
         ctx.restore();
 
-        // Nodes
+        // Nodes — fractional count, last node gets weight for glow/attraction
         const nodes = [];
-        for (let i = 0; i < p.nodeCount; i++) {
-            const r = lerp(10, 28, rng());
-            const x = lerp(W * 0.20, W * 0.80, rng());
-            const y = lerp(H * 0.22, H * 0.82, rng());
-            nodes.push({ x, y, r });
+        const nodeFloor = p.nodeCount;
+        const nodeFrac = p.nodeCountF - nodeFloor;
+        for (let i = 0; i <= nodeFloor; i++) {
+            const isLast = i === nodeFloor;
+            const r = lerp(10, 28, nodeRng());
+            const x = lerp(W * 0.20, W * 0.80, nodeRng());
+            const y = lerp(H * 0.22, H * 0.82, nodeRng());
+            nodes.push({ x, y, r, weight: isLast ? nodeFrac : 1 });
         }
 
         // Symmetry axis hint
@@ -140,7 +159,7 @@ export function createRenderer(canvas, ctx) {
             ctx.restore();
         }
 
-        function mirrorX(x) {
+        function mirrorX(x, rng) {
             const dx = x - cx;
             const perfect = cx - dx;
             const fractured = perfect + (rng() * 2 - 1) * (p.fracture * 95);
@@ -148,42 +167,60 @@ export function createRenderer(canvas, ctx) {
             return lerp(fractured + axisSkew, perfect, p.symmetry);
         }
 
-        // Shards
-        for (let layer = 0; layer < p.shardLayers; layer++) {
-            const shardHue = (p.hue + lerp(-35, 75, rng()) + layer * lerp(8, 18, rng())) % 360;
-            const sat = lerp(35, 78, clamp01(p.lum + 0.15 * rng()));
-            const light = lerp(36, 72, clamp01(p.lum + 0.20 * rng()));
-            const layerT = 1 - layer / (p.shardLayers + 1);
+        // Shards — fractional layer and shard count blending
+        const shardFloor = p.shardLayers;
+        const shardLayerFrac = p.shardLayersF - shardFloor;
+        const spsFloor = p.shardsPerLayer;
+        const spsFrac = p.shardsPerLayerF - spsFloor;
 
-            const alpha = p.shardAlpha * lerp(0.65, 1.25, layerT) * (1 + 0.35 * p.bleed) * (1 - 0.18 * p.edgeSharpness);
+        for (let layer = 0; layer <= shardFloor; layer++) {
+            const isLastLayer = layer === shardFloor;
+            const layerScale = isLastLayer ? shardLayerFrac : 1;
+
+            const shardHue = (p.hue + lerp(-35, 75, shardRng()) + layer * lerp(8, 18, shardRng())) % 360;
+            const sat = lerp(35, 78, clamp01(p.lum + 0.15 * shardRng()));
+            const light = lerp(36, 72, clamp01(p.lum + 0.20 * shardRng()));
+            const layerT = 1 - layer / (shardFloor + 2);
+
+            const baseAlpha = p.shardAlpha * lerp(0.65, 1.25, layerT) * (1 + 0.35 * p.bleed) * (1 - 0.18 * p.edgeSharpness);
+            const layerAlpha = baseAlpha * layerScale;
 
             ctx.save();
             ctx.globalCompositeOperation = (p.bleed > 0.55) ? 'screen' : ((layer % 2 === 0) ? 'lighter' : 'screen');
 
-            ctx.fillStyle = hsl(shardHue, sat, light, alpha);
-            ctx.strokeStyle = hsl(shardHue, sat, light, alpha * 1.15);
+            ctx.fillStyle = hsl(shardHue, sat, light, layerAlpha);
+            ctx.strokeStyle = hsl(shardHue, sat, light, layerAlpha * 1.15);
 
-            for (let s = 0; s < p.shardsPerLayer; s++) {
-                const sides = 3 + Math.floor(rng() * 5);
-                const radius = lerp(60, 235, rng()) * lerp(0.75, 1.10, layerT);
-                const angle0 = rng() * Math.PI * 2;
+            for (let s = 0; s <= spsFloor; s++) {
+                const isLastShard = s === spsFloor;
 
-                let x0 = lerp(W * 0.18, W * 0.82, rng());
-                let y0 = lerp(H * 0.18, H * 0.86, rng());
+                const sides = 3 + Math.floor(shardRng() * 5);
+                const radius = lerp(60, 235, shardRng()) * lerp(0.75, 1.10, layerT);
+                const angle0 = shardRng() * Math.PI * 2;
 
-                const n = nodes[Math.floor(rng() * nodes.length)];
-                const attract = lerp(0.05, 0.24, p.density) * (0.7 + 0.7 * rng());
+                let x0 = lerp(W * 0.18, W * 0.82, shardRng());
+                let y0 = lerp(H * 0.18, H * 0.86, shardRng());
+
+                const n = nodes[Math.floor(shardRng() * nodes.length)];
+                const attract = lerp(0.05, 0.24, p.density) * (0.7 + 0.7 * shardRng()) * n.weight;
                 x0 = lerp(x0, n.x, attract);
                 y0 = lerp(y0, n.y, attract);
 
-                x0 += (rng() * 2 - 1) * (p.bleed * 24);
-                y0 += (rng() * 2 - 1) * (p.bleed * 24);
+                x0 += (shardRng() * 2 - 1) * (p.bleed * 24);
+                y0 += (shardRng() * 2 - 1) * (p.bleed * 24);
 
-                drawShard(x0, y0, radius, sides, angle0, rng, p);
+                // Fractional last-shard fade
+                if (isLastShard) {
+                    const fracAlpha = layerAlpha * spsFrac;
+                    ctx.fillStyle = hsl(shardHue, sat, light, fracAlpha);
+                    ctx.strokeStyle = hsl(shardHue, sat, light, fracAlpha * 1.15);
+                }
 
-                const xm = mirrorX(x0);
-                const ym = y0 + (rng() * 2 - 1) * p.fracture * 18;
-                drawShard(xm, ym, radius * lerp(0.92, 1.06, rng()), sides, angle0 + (rng() * 2 - 1) * p.fracture * 0.25, rng, p);
+                drawShard(x0, y0, radius, sides, angle0, shardRng, p);
+
+                const xm = mirrorX(x0, shardRng);
+                const ym = y0 + (shardRng() * 2 - 1) * p.fracture * 18;
+                drawShard(xm, ym, radius * lerp(0.92, 1.06, shardRng()), sides, angle0 + (shardRng() * 2 - 1) * p.fracture * 0.25, shardRng, p);
             }
 
             ctx.restore();
@@ -229,11 +266,11 @@ export function createRenderer(canvas, ctx) {
                         ang = lerp(ang, altAng, p.multiAxis * 0.45);
                     }
 
-                    const len = lerp(4, 18, p.flow) * (0.7 + 0.6 * rng());
+                    const len = lerp(4, 18, p.flow) * (0.7 + 0.6 * flowRng());
                     const x2 = gx + Math.cos(ang) * len;
                     const y2 = gy + Math.sin(ang) * len;
 
-                    ctx.lineWidth = lerp(0.6, 1.8, p.flow) * (0.6 + 0.7 * rng()) * (1 - 0.15 * p.edgeSharpness);
+                    ctx.lineWidth = lerp(0.6, 1.8, p.flow) * (0.6 + 0.7 * flowRng()) * (1 - 0.15 * p.edgeSharpness);
                     ctx.beginPath();
                     ctx.moveTo(gx, gy);
                     ctx.lineTo(x2, y2);
@@ -243,18 +280,19 @@ export function createRenderer(canvas, ctx) {
             ctx.restore();
         }
 
-        // Node glows
+        // Node glows — weighted by fractional node weight
         ctx.save();
         ctx.globalCompositeOperation = 'screen';
         for (const n of nodes) {
-            const glowR = n.r * lerp(6.5, 12.0, p.lum) * (1 + 0.35 * p.bleed);
-            softGlow(n.x, n.y, glowR, lerp(0.02, 0.09, aspects.radiance));
-            softGlow(mirrorX(n.x), n.y, glowR * 0.92, lerp(0.015, 0.065, aspects.radiance));
+            const glowR = n.r * lerp(6.5, 12.0, p.lum) * (1 + 0.35 * p.bleed) * n.weight;
+            const glowA = lerp(0.02, 0.09, aspects.radiance) * n.weight;
+            softGlow(n.x, n.y, glowR, glowA);
+            softGlow(mirrorX(n.x, nodeRng), n.y, glowR * 0.92, lerp(0.015, 0.065, aspects.radiance) * n.weight);
         }
         ctx.restore();
 
         vignette(lerp(0.32, 0.70, 1 - p.lum));
-        addGrain(rng, clamp01(p.grain));
+        addGrain(grainRng, clamp01(p.grain));
 
         const altText = generateAltText(aspects, nodes.length, title);
 

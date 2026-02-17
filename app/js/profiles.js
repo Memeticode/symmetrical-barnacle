@@ -74,8 +74,9 @@ export function ensureStarterProfiles() {
  * @param {string[]} landmarks - Array of profile names in order
  * @param {object} profiles - Current profiles object from loadProfiles()
  * @param {object} callbacks - { onReorder(newLandmarks), onRemove(index) }
+ * @param {function|null} [renderThumbnail] - optional (seed, aspects, destCanvas) => void
  */
-export function renderLoopList(listEl, landmarks, profiles, callbacks) {
+export function renderLoopList(listEl, landmarks, profiles, callbacks, renderThumbnail = null) {
     listEl.innerHTML = '';
 
     if (landmarks.length === 0) {
@@ -92,19 +93,46 @@ export function renderLoopList(listEl, landmarks, profiles, callbacks) {
         div.className = 'item';
 
         const left = document.createElement('div');
+        left.className = 'item-left';
+
+        // Thumbnail canvas
+        if (renderThumbnail && p?.seed && p?.aspects) {
+            const thumbCanvas = document.createElement('canvas');
+            thumbCanvas.width = 140;
+            thumbCanvas.height = 90;
+            left.appendChild(thumbCanvas);
+            // Defer rendering to avoid blocking list assembly
+            const seed = p.seed;
+            const aspects = { ...p.aspects };
+            setTimeout(() => renderThumbnail(seed, aspects, thumbCanvas), 0);
+        }
+
+        const textBlock = document.createElement('div');
         const nm = document.createElement('div');
         nm.className = 'name';
         nm.textContent = `${idx + 1}. ${name}`;
-        const sub = document.createElement('div');
-        sub.className = 'subline';
+        textBlock.appendChild(nm);
+
         if (p?.aspects) {
             const a = p.aspects;
+            const details = document.createElement('details');
+            details.className = 'item-details';
+            const summary = document.createElement('summary');
+            summary.textContent = 'Details';
+            const sub = document.createElement('div');
+            sub.className = 'subline';
             sub.textContent = `coh ${a.coherence.toFixed(2)} \u00b7 ten ${a.tension.toFixed(2)} \u00b7 rec ${a.recursion.toFixed(2)} \u00b7 mot ${a.motion.toFixed(2)} \u00b7 vul ${a.vulnerability.toFixed(2)} \u00b7 rad ${a.radiance.toFixed(2)}`;
+            details.appendChild(summary);
+            details.appendChild(sub);
+            textBlock.appendChild(details);
         } else {
+            const sub = document.createElement('div');
+            sub.className = 'subline';
             sub.textContent = 'missing profile';
+            textBlock.appendChild(sub);
         }
-        left.appendChild(nm);
-        left.appendChild(sub);
+
+        left.appendChild(textBlock);
 
         const controls = document.createElement('div');
         controls.className = 'controls';

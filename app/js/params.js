@@ -15,19 +15,24 @@ export function deriveParams(a, rng) {
     const multiAxis = clamp01((1 - a.coherence) * a.tension);
 
     const paletteWobble = (rng() * 2 - 1) * 14;
-    const baseHue =
-        (a.radiance > 0.62)
-            ? lerp(215, 315, rng())
-            : lerp(190, 285, rng());
+    const hueHigh = lerp(215, 315, rng());   // always draw — keeps RNG consumption constant
+    const hueLow  = lerp(190, 285, rng());   // always draw
+    // Smooth blend over [0.55, 0.69] instead of hard switch at 0.62
+    const radBlend = clamp01((a.radiance - 0.55) / 0.14);
+    const baseHue = lerp(hueLow, hueHigh, radBlend);
     const hue = (baseHue + lerp(-35, 45, a.tension) + paletteWobble + 360) % 360;
 
-    const nodeCount = Math.floor(lerp(3, 11, density));
-    const shardLayers = 2 + Math.floor(lerp(1, 6, density));
-    const shardsPerLayer = 10 + Math.floor(lerp(8, 36, density));
+    // Float counts — renderer uses these for fractional blending of boundary elements
+    const nodeCountF = lerp(3, 11, density);
+    const shardLayersF = 2 + lerp(1, 6, density);
+    const shardsPerLayerF = 10 + lerp(8, 36, density);
+    const nodeCount = Math.floor(nodeCountF);
+    const shardLayers = Math.floor(shardLayersF);
+    const shardsPerLayer = Math.floor(shardsPerLayerF);
 
     const grain = lerp(0.02, 0.08, 1 - lum) + 0.02 * fracture;
     const shardAlphaBase = lerp(0.04, 0.12, lum) * lerp(0.9, 1.25, 1 - edgeSharpness);
     const shardAlpha = clamp01(shardAlphaBase + 0.05 * bleed);
 
-    return { symmetry, fracture, density, flow, lum, bleed, edgeSharpness, multiAxis, hue, nodeCount, shardLayers, shardsPerLayer, grain, shardAlpha };
+    return { symmetry, fracture, density, flow, lum, bleed, edgeSharpness, multiAxis, hue, nodeCount, nodeCountF, shardLayers, shardLayersF, shardsPerLayer, shardsPerLayerF, grain, shardAlpha };
 }
