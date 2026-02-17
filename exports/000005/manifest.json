@@ -1,0 +1,26 @@
+{
+  "kind": "animation",
+  "export_kind": "video",
+  "seed": "demo-unified-seed-001",
+  "fps": 24,
+  "duration_ms": 16000,
+  "total_frames": 384,
+  "time_warp_strength": 0.78,
+  "motion_blur": {
+    "enabled": true,
+    "decay": 0.18,
+    "add": 0.9
+  },
+  "landmarks": [
+    "Asleep, Quiet",
+    "Awake."
+  ],
+  "generated_at": "2026-02-17T03:01:30.686Z",
+  "files": [
+    "animation.mp4",
+    "title.txt",
+    "alt-text.txt",
+    "keyframes.json",
+    "manifest.json"
+  ]
+}
