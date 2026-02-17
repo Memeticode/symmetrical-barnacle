@@ -300,6 +300,9 @@ const MB_DECAY = 0.18;
 // Higher => crisper but more smear. Typical: 0.75..1.0
 const MB_ADD = 0.90;
 
+const FIXED_LOOP_SECONDS = 30;
+const FIXED_LOOP_MS = FIXED_LOOP_SECONDS * 1000;
+
 /* ---------------------------
  * Deterministic PRNG
  * ---------------------------
@@ -1313,10 +1316,17 @@ el.exportStillZip.addEventListener("click", async () => {
   toast("Exported still ZIP.");
 });
 
-/* ---------------------------
- * Animation export: record video if possible; else frames fallback
- * (includes motion blur accumulation)
- * ---------------------------
+
+// Helper: pace frames in real time so MediaRecorder timestamps are correct.
+async function waitUntil(targetTimeMs) {
+  while (performance.now() < targetTimeMs) {
+    await new Promise((r) => requestAnimationFrame(r));
+  }
+}
+
+/**
+ * Record exactly one seamless loop over a fixed duration (e.g., 30s),
+ * completing the entire landmark cycle exactly once.
  */
 async function recordOneLoopVideoOrFrames() {
   const landmarks = getLandmarkAspectsOrdered();
@@ -1324,37 +1334,57 @@ async function recordOneLoopVideoOrFrames() {
 
   const seed = el.animSeed.value.trim() || "anim-seed";
   const fps = ANIM_FPS;
-  const durationMs = computeDurationMs(landmarks.length);
-  const frameInterval = 1000 / fps;
-  const totalFrames = Math.max(1, Math.floor(durationMs / frameInterval));
 
-  // Always reset blur buffer for a clean capture
+  // Fixed length export (always).
+  const durationMs = FIXED_LOOP_MS;
+
+  const frameInterval = 1000 / fps;
+  const totalFrames = Math.max(1, Math.round(durationMs / frameInterval));
+
+  // Clean accumulation buffer for capture
   motionBlur.setEnabled(MOTION_BLUR_ENABLED);
   motionBlur.clear();
 
+  // Render one frame at a specific normalized time tNorm in [0,1).
+  const renderAt = (tNorm) => {
+    el.progressBar.style.width = `${(tNorm * 100).toFixed(2)}%`;
+    const aspects = evalAspectsAt(tNorm, landmarks);
+    renderWith(seed, aspects);
+    motionBlur.apply();
+  };
+
   // Try MediaRecorder first
   const fmt = pickRecordingFormat();
-  if (fmt && typeof canvas.captureStream === "function" && typeof MediaRecorder !== "undefined") {
+  if (
+    fmt &&
+    typeof canvas.captureStream === "function" &&
+    typeof MediaRecorder !== "undefined"
+  ) {
     try {
       const stream = canvas.captureStream(fps);
       const opts = fmt.mime ? { mimeType: fmt.mime } : undefined;
       const recorder = opts ? new MediaRecorder(stream, opts) : new MediaRecorder(stream);
 
       const chunks = [];
-      recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
 
       recorder.start();
 
-      // Render exact frames (perfect loop: f/totalFrames)
+      const start = performance.now();
+
       for (let f = 0; f < totalFrames; f++) {
-        const tNorm = f / totalFrames;
-        el.progressBar.style.width = `${(tNorm * 100).toFixed(2)}%`;
-        const aspects = evalAspectsAt(tNorm, landmarks);
+        // Time-based normalized loop position: completes full cycle in durationMs.
+        const tNorm = f / totalFrames; // [0,1)
+        renderAt(tNorm);
 
-        renderWith(seed, aspects);
-        motionBlur.apply();
+        // Yield more aggressively every ~4 frames to reduce perceived freezing.
+        if ((f & 3) === 3) {
+          await new Promise((r) => setTimeout(r, 0));
+        }
 
-        await new Promise(r => requestAnimationFrame(() => r()));
+        await waitUntil(start + (f + 1) * frameInterval);
       }
 
       try { recorder.requestData(); } catch {}
@@ -1362,38 +1392,54 @@ async function recordOneLoopVideoOrFrames() {
 
       const blob = await new Promise((resolve, reject) => {
         recorder.onstop = () => {
-          const out = new Blob(chunks, { type: recorder.mimeType || (fmt.mime || "video/webm") });
+          const out = new Blob(chunks, {
+            type: recorder.mimeType || (fmt.mime || "video/webm"),
+          });
           resolve(out);
         };
         recorder.onerror = () => reject(new Error("MediaRecorder error"));
       });
 
-      if (blob.size > 1024) {
-        return { kind: "video", blob, ext: fmt.ext, mimeType: blob.type || fmt.mime || "video/webm", fps, durationMs, seed, totalFrames };
+      if (blob && blob.size > 1024) {
+        return {
+          kind: "video",
+          blob,
+          ext: fmt.ext,
+          mimeType: blob.type || fmt.mime || "video/webm",
+          fps,
+          durationMs,
+          seed,
+          totalFrames,
+        };
       }
     } catch {
-      // fall through
+      // fall through to frames
     }
   }
 
-  // Fallback: frame sequence (guaranteed)
+  // Fallback: PNG frames (guaranteed but heavier).
+  // IMPORTANT: This is the mode that can freeze most; we yield often.
   const frames = [];
+  const start = performance.now();
+
   for (let f = 0; f < totalFrames; f++) {
     const tNorm = f / totalFrames;
-    el.progressBar.style.width = `${(tNorm * 100).toFixed(2)}%`;
-    const aspects = evalAspectsAt(tNorm, landmarks);
-
-    renderWith(seed, aspects);
-    motionBlur.apply();
+    renderAt(tNorm);
 
     const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     frames.push({ index: f, blob: pngBlob });
 
-    await new Promise(r => setTimeout(r, 0));
+    // Yield every frame in fallback mode (yes, every frame) to keep UI alive.
+    await new Promise((r) => setTimeout(r, 0));
+
+    await waitUntil(start + (f + 1) * frameInterval);
   }
 
   return { kind: "frames", frames, fps, durationMs, seed, totalFrames };
 }
+
+
+
 
 function computeKeyframeText(seedForTitles, landmarks) {
   const out = [];
@@ -1433,6 +1479,7 @@ function computeLoopSummaryTitleAlt(seed, landmarks) {
 
   return { title, altText };
 }
+
 
 el.exportAnimZip.addEventListener("click", async () => {
   if (!window.JSZip) { toast("JSZip missing (offline?)."); return; }
