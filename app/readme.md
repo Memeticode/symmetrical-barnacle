@@ -1,12 +1,11 @@
 # Geometric Interior Self-Portrait — Simplified (Image + Animation)
 
-A client-side generative art instrument with two modes:
+Two modes:
 
 ## Image mode
 - Adjust 6 aspect sliders
-- Render a still image
-- Save the current configuration as a **Profile** (a “landmark”)
-- Export a **Still ZIP** containing:
+- Save the configuration as a **Profile** (a landmark)
+- Export a **Still ZIP**:
   - `image.png`
   - `title.txt`
   - `alt-text.txt`
@@ -14,9 +13,9 @@ A client-side generative art instrument with two modes:
   - `metadata.json`
 
 ## Animation mode
-- Build a loop by adding 2+ saved Profiles (landmarks)
-- Play/Pause a seamless looping animation
-- Export an **Animation ZIP** containing:
+- Add 2+ saved Profiles into a loop
+- Seamless looping animation rendered at **24 fps**
+- Export an **Animation ZIP**:
   - `animation.webm`
   - `title.txt`
   - `alt-text.txt`
@@ -25,40 +24,24 @@ A client-side generative art instrument with two modes:
 
 Everything runs locally in the browser (no uploads, no server).
 
-External dependency:
-- JSZip (ZIP exports) loaded via CDN by default.
-
 ---
 
 ## Seamless loop model
 
 ### 3+ landmarks
-The animation uses a **closed Catmull–Rom spline** per slider:
-- C1 continuous (smooth velocity)
-- Seamless loop by construction (end matches start)
+- Closed Catmull–Rom spline per slider (smooth continuity)
+- **Time-warp** (under the hood): lingers near landmarks, accelerates between them, still seamless
 
 ### 2 landmarks
-The animation uses a cosine-eased A↔B loop:
-- Seamless and smooth (zero slope at turning points)
-
----
-
-## Determinism
-
-Still renders:
-- same seed + same aspects => same image/title/alt-text
-
-Animation:
-- a fixed **Animation Seed** ensures the animation’s structure stays coherent as aspects morph.
+- Cosine A↔B loop (smooth turnarounds)
+- Subtle time-warp applied to avoid over-slowing
 
 ---
 
 ## Run
 
-### Option A: Open directly
-Open `index.html` in a modern browser.
+Open `index.html`, or:
 
-### Option B: Local dev server
 ```bash
 npm install
 npm run dev

@@ -151,7 +151,7 @@
     <!-- IMAGE MODE -->
     <section id="imageModeSection">
       <div class="row">
-        <label>Seed <span class="small" id="seedInfo"></span></label>
+        <label>Seed</label>
         <input id="seed" type="text" value="quietly-bent-001" />
         <div class="small">Same seed + same aspects ⇒ same output.</div>
       </div>
@@ -207,7 +207,10 @@
       <div class="row">
         <label>Animation seed</label>
         <input id="animSeed" type="text" value="anim-unified-seed-001" />
-        <div class="small">A single seed keeps the structure coherent while aspects morph.</div>
+        <div class="small">
+          One seed keeps the structure coherent while aspects morph.
+          Playback + export are rendered at <b>24 fps</b>.
+        </div>
       </div>
 
       <div class="row">
@@ -223,7 +226,9 @@
       <div class="row">
         <label>Loop landmarks</label>
         <div id="loopList" class="list"></div>
-        <div class="small">For “maximally fluid” looping, use 3+ landmarks. (2 landmarks still loops cleanly.)</div>
+        <div class="small">
+          Under the hood: a seamless spline loop + “breathing” time-warp + temporal motion blur accumulation.
+        </div>
       </div>
 
       <div class="btns">
@@ -231,10 +236,6 @@
         <button id="exportAnimZip">Export Animation ZIP</button>
       </div>
       <div class="progress" aria-label="Animation progress"><div id="progressBar"></div></div>
-
-      <div class="small">
-        Under the hood: closed Catmull–Rom spline across your landmarks (when 3+). Seamless by construction.
-      </div>
     </section>
 
     <div class="hr"></div>
@@ -253,20 +254,51 @@
 
 <script>
 /* ============================================================
- * Simplified UI + Seamless Looping Animation
+ * Simplified UI + Seamless Looping + Time-Warp + 24 FPS
+ * + Motion blur accumulation via a decay buffer.
  * ============================================================
- * Modes:
- * - Image: adjust sliders, render, save profile, export still zip
- * - Animation: build loop from saved profiles, play/pause, export animation zip (WebM)
  *
  * Seamless loop:
- * - 3+ landmarks: cyclic Catmull–Rom spline per aspect slider.
- * - 2 landmarks: cosine-eased A<->B loop.
+ * - 3+ landmarks: closed Catmull–Rom spline per aspect slider.
+ * - 2 landmarks: cosine A<->B loop.
+ *
+ * Time-warp (“breathing”):
+ * - per-segment remap that slows near keyframes and speeds mid-segment.
+ * - seamless because each segment remap maps [0,1] -> [0,1]
+ *
+ * FPS:
+ * - Playback renders at 24fps (fixed frame scheduler)
+ * - Export records 1 full loop at 24fps
+ *
+ * Motion blur (decay buffer):
+ * - Keeps an accumulation buffer that decays each frame, then adds current frame.
+ * - Produces smooth persistence without brightening as much as naive overlay.
+ * - Enabled only in animation mode (playback + export). Still renders remain crisp.
  *
  * Exports ALWAYS include title + alt text:
  * - Still ZIP: image.png + title.txt + alt-text.txt + note.txt + metadata.json
- * - Anim ZIP: animation.webm + title.txt + alt-text.txt + keyframes.json + manifest.json
+ * - Anim ZIP: animation.<ext> OR frames/* + title.txt + alt-text.txt + keyframes.json + manifest.json
  */
+
+/* ---------------------------
+ * Under-the-hood constants
+ * ---------------------------
+ */
+const ANIM_FPS = 24;
+
+// 0..1: strength of “linger at landmarks”
+const TIME_WARP_STRENGTH = 0.78;
+
+// Motion blur accumulation (temporal)
+const MOTION_BLUR_ENABLED = true;
+
+// How quickly the accumulated buffer fades each frame.
+// Higher => shorter trails (less blur). Typical: 0.12..0.25
+const MB_DECAY = 0.18;
+
+// How strongly the current frame is added into the accumulation.
+// Higher => crisper but more smear. Typical: 0.75..1.0
+const MB_ADD = 0.90;
 
 /* ---------------------------
  * Deterministic PRNG
@@ -362,15 +394,6 @@ function readAspectsFromUI() {
     radiance: parseFloat(el.radiance.value),
   };
 }
-function setAspectsToUI(a) {
-  el.coherence.value = String(clamp01(a.coherence ?? 0.5));
-  el.tension.value = String(clamp01(a.tension ?? 0.5));
-  el.recursion.value = String(clamp01(a.recursion ?? 0.5));
-  el.motion.value = String(clamp01(a.motion ?? 0.5));
-  el.vulnerability.value = String(clamp01(a.vulnerability ?? 0.5));
-  el.radiance.value = String(clamp01(a.radiance ?? 0.5));
-  updateAspectLabels(readAspectsFromUI());
-}
 function updateAspectLabels(a) {
   el.cohLabel.textContent = a.coherence.toFixed(2);
   el.tenLabel.textContent = a.tension.toFixed(2);
@@ -382,20 +405,80 @@ function updateAspectLabels(a) {
 function readNote() { return (el.note.value ?? "").trim(); }
 
 /* ---------------------------
+ * Motion blur (decay buffer)
+ * ---------------------------
+ * Implementation:
+ * - We keep an offscreen buffer "acc" that stores the accumulated image.
+ * - Each frame:
+ *   1) decay: acc = acc * (1 - MB_DECAY)    (implemented by drawing a translucent black rect with destination-in)
+ *   2) add:   acc += current * MB_ADD       (implemented by drawing current on top with source-over + alpha)
+ *   3) present: draw acc onto main canvas
+ *
+ * This avoids the “brightening” that naive previous-frame overlays can cause.
+ */
+const motionBlur = (() => {
+  const acc = document.createElement("canvas");
+  const accCtx = acc.getContext("2d", { alpha: true });
+
+  let enabled = false;
+
+  function resizeToMatchMainCanvas() {
+    acc.width = canvas.width;
+    acc.height = canvas.height;
+    clear();
+  }
+
+  function clear() {
+    accCtx.save();
+    accCtx.globalCompositeOperation = "source-over";
+    accCtx.clearRect(0, 0, acc.width, acc.height);
+    accCtx.restore();
+  }
+
+  function setEnabled(v) {
+    enabled = !!v;
+    if (!enabled) clear();
+  }
+
+  function apply() {
+    if (!enabled) return;
+
+    // 1) decay existing accumulation
+    // destination-in keeps destination where source alpha exists; use it with alpha < 1 to fade.
+    accCtx.save();
+    accCtx.globalCompositeOperation = "destination-in";
+    accCtx.globalAlpha = 1 - clamp01(MB_DECAY);
+    accCtx.fillStyle = "rgba(0,0,0,1)";
+    accCtx.fillRect(0, 0, acc.width, acc.height);
+    accCtx.restore();
+
+    // 2) add current frame
+    accCtx.save();
+    accCtx.globalCompositeOperation = "source-over";
+    accCtx.globalAlpha = clamp01(MB_ADD);
+    accCtx.drawImage(canvas, 0, 0);
+    accCtx.restore();
+
+    // 3) present accumulation to main canvas (overwrite main with accumulated)
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1.0;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(acc, 0, 0);
+    ctx.restore();
+  }
+
+  resizeToMatchMainCanvas();
+
+  return { resizeToMatchMainCanvas, clear, setEnabled, apply };
+})();
+
+/* ---------------------------
  * Profiles (localStorage)
  * ---------------------------
  */
 const LS_KEY = "geo_self_portrait_profiles_v3";
 
-/**
- * profile:
- * {
- *   name: string,
- *   seed: string,           // used for still renders
- *   note: string,
- *   aspects: { ... }
- * }
- */
 function loadProfiles() {
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -459,7 +542,7 @@ function ensureStarterProfiles() {
 }
 
 /* ---------------------------
- * Loop list (animation landmarks)
+ * Loop list (landmarks)
  * ---------------------------
  */
 let loopLandmarks = []; // array of profile names in order
@@ -622,7 +705,6 @@ function signedNoise2D(x, y) {
 /* ---------------------------
  * Title + Alt-text
  * ---------------------------
- * Deterministic: depends on aspects + seed RNG.
  */
 function generateTitle(aspects, rng) {
   const coh = aspects.coherence, ten = aspects.tension, rec = aspects.recursion, mot = aspects.motion, vul = aspects.vulnerability, rad = aspects.radiance;
@@ -669,15 +751,17 @@ function generateAltText(aspects, nodeCount, title) {
 }
 
 /* ---------------------------
- * Render (seed + aspects) -> draws canvas + returns metadata
+ * Render (seed + aspects) -> draws canvas + updates title/alt
  * ---------------------------
+ * Note: this draws a "raw frame" to the main canvas.
+ * In animation mode, we then pass it through the motion blur decay buffer,
+ * which overwrites the main canvas with the accumulated version.
  */
 function renderWith(seedStr, aspects) {
   const seedFn = xmur3(seedStr);
   const rng = mulberry32(seedFn());
 
   const p = deriveParams(aspects, rng);
-
   const title = generateTitle(aspects, rng);
 
   const W = canvas.width, H = canvas.height;
@@ -866,19 +950,21 @@ function renderWith(seedStr, aspects) {
 }
 
 /* ---------------------------
- * Seamless animation interpolation
+ * Seamless animation interpolation + time-warp
  * ---------------------------
  */
-
-// For 3+ points: closed Catmull–Rom spline.
-// For 2 points: cosine A<->B loop.
+function smootherstep(t) {
+  t = clamp01(t);
+  return t*t*t*(t*(t*6 - 15) + 10);
+}
+function warpSegmentT(t, strength) {
+  const w = smootherstep(t);
+  return lerp(t, w, clamp01(strength));
+}
 function cosineEase(t) {
-  // 0..1 -> smooth 0..1 with zero slope at ends
   return 0.5 - 0.5 * Math.cos(Math.PI * t);
 }
-
 function catmullRom(p0, p1, p2, p3, t) {
-  // Uniform Catmull–Rom
   const t2 = t * t;
   const t3 = t2 * t;
   return 0.5 * (
@@ -900,17 +986,17 @@ function getLandmarkAspectsOrdered() {
 }
 
 function evalAspectsAt(tNorm, landmarks) {
-  // tNorm in [0,1)
   const n = landmarks.length;
   if (n < 2) return null;
 
-  // Special: 2 landmarks => A->B->A seamless (cosine on half-cycles)
   if (n === 2) {
     const a0 = landmarks[0].aspects;
     const a1 = landmarks[1].aspects;
-    // Map tNorm [0,1) into 0..1..0
+
     const phase = (tNorm < 0.5) ? (tNorm * 2) : (2 - tNorm * 2);
-    const u = cosineEase(phase);
+    const warped = warpSegmentT(phase, TIME_WARP_STRENGTH * 0.55);
+    const u = cosineEase(warped);
+
     return {
       coherence: lerp(a0.coherence, a1.coherence, u),
       tension: lerp(a0.tension, a1.tension, u),
@@ -921,10 +1007,12 @@ function evalAspectsAt(tNorm, landmarks) {
     };
   }
 
-  // 3+ landmarks => closed spline across segments
-  const seg = tNorm * n;            // 0..n
-  const i1 = Math.floor(seg) % n;   // current key index
-  const t = seg - Math.floor(seg);  // local t in [0,1)
+  const seg = tNorm * n;
+  const i1 = Math.floor(seg) % n;
+  const tLinear = seg - Math.floor(seg);
+
+  const t = warpSegmentT(tLinear, TIME_WARP_STRENGTH);
+
   const i0 = (i1 - 1 + n) % n;
   const i2 = (i1 + 1) % n;
   const i3 = (i1 + 2) % n;
@@ -934,8 +1022,6 @@ function evalAspectsAt(tNorm, landmarks) {
   const A2 = landmarks[i2].aspects;
   const A3 = landmarks[i3].aspects;
 
-  // No need for additional easing: Catmull–Rom is already C1 continuous.
-  // We clamp final values to [0,1] to stay in slider domain.
   return {
     coherence: clamp01(catmullRom(A0.coherence, A1.coherence, A2.coherence, A3.coherence, t)),
     tension: clamp01(catmullRom(A0.tension, A1.tension, A2.tension, A3.tension, t)),
@@ -947,20 +1033,19 @@ function evalAspectsAt(tNorm, landmarks) {
 }
 
 /* ---------------------------
- * Animation loop
+ * Animation loop (24 fps fixed frame scheduler)
  * ---------------------------
  */
 let anim = {
   playing: false,
   startMs: 0,
-  durationMs: 22000, // fixed “pleasant” default; scales with landmarks
+  durationMs: 22000,
+  lastFrameIndex: -1,
 };
 
 function computeDurationMs(numLandmarks) {
-  // Minimal UI: duration under the hood, but responsive to number of landmarks.
-  // Feels slower as you add more identity landmarks.
-  const base = 16000; // 16s baseline
-  const extra = Math.max(0, numLandmarks - 2) * 3500; // +3.5s per additional landmark
+  const base = 16000;
+  const extra = Math.max(0, numLandmarks - 2) * 3500;
   return Math.min(60000, base + extra);
 }
 
@@ -977,13 +1062,25 @@ function tick(nowMs) {
 
   anim.durationMs = computeDurationMs(landmarks.length);
 
-  const elapsed = (nowMs - anim.startMs) % anim.durationMs;
-  const tNorm = elapsed / anim.durationMs;
-
+  const elapsed = (nowMs - anim.startMs);
+  const wrapped = ((elapsed % anim.durationMs) + anim.durationMs) % anim.durationMs;
+  const tNorm = wrapped / anim.durationMs;
   el.progressBar.style.width = `${(tNorm * 100).toFixed(2)}%`;
 
-  const aspects = evalAspectsAt(tNorm, landmarks);
-  renderWith((el.animSeed.value.trim() || "anim-seed"), aspects);
+  const frameInterval = 1000 / ANIM_FPS;
+  const frameIndex = Math.floor(wrapped / frameInterval);
+
+  if (frameIndex !== anim.lastFrameIndex) {
+    const aspects = evalAspectsAt(tNorm, landmarks);
+
+    // Draw raw frame
+    renderWith((el.animSeed.value.trim() || "anim-seed"), aspects);
+
+    // Apply temporal blur (overwrites main canvas with accumulated)
+    motionBlur.apply();
+
+    anim.lastFrameIndex = frameIndex;
+  }
 
   requestAnimationFrame(tick);
 }
@@ -998,23 +1095,36 @@ function setMode(mode) {
     el.modeAnim.classList.remove("active");
     el.imageSection.classList.remove("hidden");
     el.animSection.classList.add("hidden");
+
+    // Stop animation
     if (anim.playing) {
       anim.playing = false;
       el.playPause.textContent = "Play";
     }
+
+    // Disable blur in still mode
+    motionBlur.setEnabled(false);
+    motionBlur.clear();
+
     renderStill();
   } else {
     el.modeAnim.classList.add("active");
     el.modeImage.classList.remove("active");
     el.animSection.classList.remove("hidden");
     el.imageSection.classList.add("hidden");
+
+    // Enable blur in animation mode (but reset buffer)
+    motionBlur.setEnabled(MOTION_BLUR_ENABLED);
+    motionBlur.clear();
+
     refreshProfileSelect();
     loopRender();
+
     if (getLandmarkAspectsOrdered().length >= 2) {
-      // Render a representative frame even while paused
       const landmarks = getLandmarkAspectsOrdered();
       const aspects = evalAspectsAt(0.0, landmarks);
       renderWith((el.animSeed.value.trim() || "anim-seed"), aspects);
+      motionBlur.apply();
     }
   }
 }
@@ -1023,7 +1133,7 @@ el.modeImage.addEventListener("click", () => setMode("image"));
 el.modeAnim.addEventListener("click", () => setMode("anim"));
 
 /* ---------------------------
- * Image mode: render, save profile
+ * Image mode
  * ---------------------------
  */
 function renderStill() {
@@ -1059,7 +1169,7 @@ el.saveProfile.addEventListener("click", () => {
 });
 
 /* ---------------------------
- * Animation mode: loop list controls
+ * Animation mode controls
  * ---------------------------
  */
 el.addToLoop.addEventListener("click", () => {
@@ -1074,6 +1184,7 @@ el.clearLoop.addEventListener("click", () => {
   loopLandmarks = [];
   loopRender();
   el.progressBar.style.width = "0%";
+  motionBlur.clear();
   toast("Cleared.");
 });
 
@@ -1086,6 +1197,7 @@ el.loadDemoLoop.addEventListener("click", () => {
   ];
   loopRender();
   el.animSeed.value = "demo-unified-seed-001";
+  motionBlur.clear();
   toast("Loaded demo loop.");
 });
 
@@ -1096,6 +1208,11 @@ el.playPause.addEventListener("click", () => {
   anim.playing = !anim.playing;
   if (anim.playing) {
     anim.startMs = performance.now();
+    anim.lastFrameIndex = -1;
+
+    motionBlur.setEnabled(MOTION_BLUR_ENABLED);
+    motionBlur.clear();
+
     el.playPause.textContent = "Pause";
     requestAnimationFrame(tick);
   } else {
@@ -1125,16 +1242,32 @@ function canvasToPngBlob(canvas) {
 function safeName(s) {
   return (s || "seed").replace(/[^a-z0-9_-]+/gi, "_").slice(0, 80);
 }
-function pickMimeType() {
+
+/* ---------------------------
+ * Video recording format chooser
+ * ---------------------------
+ */
+function pickRecordingFormat() {
   const candidates = [
-    "video/webm;codecs=vp9",
-    "video/webm;codecs=vp8",
-    "video/webm",
+    { mime: "video/mp4", ext: "mp4" },
+    { mime: "video/mp4;codecs=avc1.42E01E", ext: "mp4" },
+    { mime: "video/webm;codecs=vp9", ext: "webm" },
+    { mime: "video/webm;codecs=vp8", ext: "webm" },
+    { mime: "video/webm", ext: "webm" },
   ];
-  for (const c of candidates) {
-    if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(c)) return c;
+
+  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) {
+    return null;
   }
-  return "";
+
+  for (const c of candidates) {
+    try {
+      if (MediaRecorder.isTypeSupported(c.mime)) return c;
+    } catch {}
+  }
+
+  // last resort: let browser pick
+  return { mime: "", ext: "webm" };
 }
 
 /* ---------------------------
@@ -1148,10 +1281,13 @@ el.exportStillZip.addEventListener("click", async () => {
   const aspects = readAspectsFromUI();
   const note = readNote();
 
-  // Ensure canvas reflects state
-  const meta = renderWith(seed, aspects);
+  // Ensure no blur affects stills
+  motionBlur.setEnabled(false);
+  motionBlur.clear();
 
+  const meta = renderWith(seed, aspects);
   const pngBlob = await canvasToPngBlob(canvas);
+
   const ts = toIsoLocalish(new Date());
   const base = `still_${safeName(seed)}_${ts}`;
 
@@ -1178,67 +1314,94 @@ el.exportStillZip.addEventListener("click", async () => {
 });
 
 /* ---------------------------
- * Animation ZIP export (WebM + title+alt + keyframes)
+ * Animation export: record video if possible; else frames fallback
+ * (includes motion blur accumulation)
  * ---------------------------
  */
-async function recordOneLoopWebm() {
+async function recordOneLoopVideoOrFrames() {
   const landmarks = getLandmarkAspectsOrdered();
   if (landmarks.length < 2) throw new Error("Need 2+ landmarks.");
 
   const seed = el.animSeed.value.trim() || "anim-seed";
-  const mimeType = pickMimeType();
-  if (!mimeType) throw new Error("WebM not supported.");
-
-  // Under the hood constants
-  const fps = 30;
+  const fps = ANIM_FPS;
   const durationMs = computeDurationMs(landmarks.length);
-  const stream = canvas.captureStream(fps);
-  const recorder = new MediaRecorder(stream, { mimeType });
-
-  const chunks = [];
-  recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-
-  recorder.start(100);
-
-  const start = performance.now();
   const frameInterval = 1000 / fps;
-  let nextFrame = start;
+  const totalFrames = Math.max(1, Math.floor(durationMs / frameInterval));
 
-  while (performance.now() - start < durationMs) {
-    const now = performance.now();
-    if (now >= nextFrame) {
-      const elapsed = now - start;
-      const tNorm = (elapsed % durationMs) / durationMs;
-      el.progressBar.style.width = `${(tNorm * 100).toFixed(2)}%`;
-      const aspects = evalAspectsAt(tNorm, landmarks);
-      renderWith(seed, aspects);
-      nextFrame += frameInterval;
+  // Always reset blur buffer for a clean capture
+  motionBlur.setEnabled(MOTION_BLUR_ENABLED);
+  motionBlur.clear();
+
+  // Try MediaRecorder first
+  const fmt = pickRecordingFormat();
+  if (fmt && typeof canvas.captureStream === "function" && typeof MediaRecorder !== "undefined") {
+    try {
+      const stream = canvas.captureStream(fps);
+      const opts = fmt.mime ? { mimeType: fmt.mime } : undefined;
+      const recorder = opts ? new MediaRecorder(stream, opts) : new MediaRecorder(stream);
+
+      const chunks = [];
+      recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+
+      recorder.start();
+
+      // Render exact frames (perfect loop: f/totalFrames)
+      for (let f = 0; f < totalFrames; f++) {
+        const tNorm = f / totalFrames;
+        el.progressBar.style.width = `${(tNorm * 100).toFixed(2)}%`;
+        const aspects = evalAspectsAt(tNorm, landmarks);
+
+        renderWith(seed, aspects);
+        motionBlur.apply();
+
+        await new Promise(r => requestAnimationFrame(() => r()));
+      }
+
+      try { recorder.requestData(); } catch {}
+      recorder.stop();
+
+      const blob = await new Promise((resolve, reject) => {
+        recorder.onstop = () => {
+          const out = new Blob(chunks, { type: recorder.mimeType || (fmt.mime || "video/webm") });
+          resolve(out);
+        };
+        recorder.onerror = () => reject(new Error("MediaRecorder error"));
+      });
+
+      if (blob.size > 1024) {
+        return { kind: "video", blob, ext: fmt.ext, mimeType: blob.type || fmt.mime || "video/webm", fps, durationMs, seed, totalFrames };
+      }
+    } catch {
+      // fall through
     }
+  }
+
+  // Fallback: frame sequence (guaranteed)
+  const frames = [];
+  for (let f = 0; f < totalFrames; f++) {
+    const tNorm = f / totalFrames;
+    el.progressBar.style.width = `${(tNorm * 100).toFixed(2)}%`;
+    const aspects = evalAspectsAt(tNorm, landmarks);
+
+    renderWith(seed, aspects);
+    motionBlur.apply();
+
+    const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    frames.push({ index: f, blob: pngBlob });
+
     await new Promise(r => setTimeout(r, 0));
   }
 
-  recorder.stop();
-
-  const blob = await new Promise((resolve) => {
-    recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
-  });
-
-  return { blob, mimeType, fps, durationMs, seed };
+  return { kind: "frames", frames, fps, durationMs, seed, totalFrames };
 }
 
 function computeKeyframeText(seedForTitles, landmarks) {
-  // Titles/alt-text for each keyframe computed deterministically using:
-  // - the animation seed (so they reflect the loop’s structural identity)
-  // - each keyframe’s aspects
-  // Note: This is separate from the actual rendered frame text, but consistent + reproducible.
   const out = [];
   for (const k of landmarks) {
     const seedFn = xmur3(seedForTitles + "::" + k.name);
     const rng = mulberry32(seedFn());
     const title = generateTitle(k.aspects, rng);
 
-    // We need a nodeCount for alt-text. We can estimate deterministically
-    // without rendering by deriving params with a deterministic RNG seeded similarly.
     const seedFn2 = xmur3(seedForTitles + "::alt::" + k.name);
     const rng2 = mulberry32(seedFn2());
     const derived = deriveParams(k.aspects, rng2);
@@ -1258,8 +1421,6 @@ function computeKeyframeText(seedForTitles, landmarks) {
 }
 
 function computeLoopSummaryTitleAlt(seed, landmarks) {
-  // A single title+alt for the bundle (requested: always exported).
-  // We evaluate aspects at t=0.0 and generate title/alt for that snapshot.
   const a0 = evalAspectsAt(0.0, landmarks);
   const seedFn = xmur3(seed + "::bundle");
   const rng = mulberry32(seedFn());
@@ -1281,7 +1442,8 @@ el.exportAnimZip.addEventListener("click", async () => {
 
   try {
     toast("Recording one seamless loop…");
-    const rec = await recordOneLoopWebm();
+
+    const rec = await recordOneLoopVideoOrFrames();
 
     const ts = toIsoLocalish(new Date());
     const base = `animation_${safeName(rec.seed)}_${ts}`;
@@ -1290,26 +1452,51 @@ el.exportAnimZip.addEventListener("click", async () => {
     const summary = computeLoopSummaryTitleAlt(rec.seed, landmarks);
 
     const zip = new JSZip();
-    zip.file(`${base}/animation.webm`, rec.blob);
+
+    if (rec.kind === "video") {
+      zip.file(`${base}/animation.${rec.ext}`, rec.blob);
+    } else {
+      const framesDir = `${base}/frames`;
+      for (const fr of rec.frames) {
+        const name = String(fr.index).padStart(5, "0");
+        zip.file(`${framesDir}/frame_${name}.png`, fr.blob);
+      }
+      zip.file(`${base}/frames/README.txt`,
+        "This export contains a PNG frame sequence because video recording was not supported on this browser.\n" +
+        "You can assemble frames into a video with ffmpeg, e.g.\n" +
+        "ffmpeg -framerate 24 -i frame_%05d.png -c:v libx264 -pix_fmt yuv420p out.mp4\n"
+      );
+    }
+
     zip.file(`${base}/title.txt`, summary.title + "\n");
     zip.file(`${base}/alt-text.txt`, summary.altText + "\n");
     zip.file(`${base}/keyframes.json`, JSON.stringify(keyframes, null, 2) + "\n");
 
     const manifest = {
       kind: "animation",
+      export_kind: rec.kind,
       seed: rec.seed,
       fps: rec.fps,
       duration_ms: rec.durationMs,
+      total_frames: rec.totalFrames,
+      time_warp_strength: TIME_WARP_STRENGTH,
+      motion_blur: {
+        enabled: MOTION_BLUR_ENABLED,
+        decay: MB_DECAY,
+        add: MB_ADD
+      },
       landmarks: loopLandmarks.slice(),
       generated_at: new Date().toISOString(),
-      files: ["animation.webm", "title.txt", "alt-text.txt", "keyframes.json", "manifest.json"]
+      files: rec.kind === "video"
+        ? [`animation.${rec.ext}`, "title.txt", "alt-text.txt", "keyframes.json", "manifest.json"]
+        : ["frames/*", "title.txt", "alt-text.txt", "keyframes.json", "manifest.json"]
     };
     zip.file(`${base}/manifest.json`, JSON.stringify(manifest, null, 2) + "\n");
 
     const zipBlob = await zip.generateAsync({ type: "blob" });
     downloadBlob(`${base}.zip`, zipBlob);
     toast("Exported animation ZIP.");
-  } catch (e) {
+  } catch {
     toast("Animation export failed.");
   }
 });
