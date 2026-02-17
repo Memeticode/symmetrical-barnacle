@@ -1,0 +1,19 @@
+{
+  "kind": "still",
+  "seed": "large-identiy-Relaxing Wave-Green",
+  "note": "Relaxing Wave",
+  "aspects": {
+    "coherence": 1,
+    "tension": 0,
+    "recursion": 0,
+    "motion": 0,
+    "vulnerability": 0.49,
+    "radiance": 0
+  },
+  "title": "Quietly Bent Sparse Geometry",
+  "generated_at": "2026-02-17T16:34:45.834Z",
+  "canvas": {
+    "width": 1400,
+    "height": 900
+  }
+}

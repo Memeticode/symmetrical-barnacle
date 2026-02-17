@@ -1,1563 +1,1677 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Geometric Interior Self-Portrait</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Geometric Interior Self-Portrait</title>
 
-  <style>
-    :root { color-scheme: dark; }
-    body {
-      margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      background: #0b0d12;
-      color: #e9eefc;
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      min-height: 100vh;
-    }
-    .panel {
-      padding: 14px;
-      border-right: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.02);
-      overflow: auto;
-    }
-    h1 { font-size: 14px; margin: 0 0 10px; letter-spacing: 0.3px; }
-    .sub { font-size: 12px; opacity: 0.75; line-height: 1.35; margin-bottom: 10px; }
-    .row { margin: 10px 0; }
-    label {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 12px;
-      opacity: 0.9;
-      margin-bottom: 6px;
-    }
-    input[type="range"] { width: 100%; }
-    input[type="text"], textarea, select {
-      width: 100%;
-      padding: 8px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.03);
-      color: inherit;
-      outline: none;
-      box-sizing: border-box;
-    }
-    textarea { resize: vertical; min-height: 72px; line-height: 1.35; }
-    .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    button {
-      padding: 9px 11px;
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(255,255,255,0.06);
-      color: inherit;
-      border-radius: 12px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-    button:hover { background: rgba(255,255,255,0.09); }
-    button.primary { border-color: rgba(130,200,255,0.35); }
-    button.danger { border-color: rgba(255,90,90,0.25); }
-    button[disabled] { opacity: 0.55; cursor: not-allowed; }
+    <style>
+        :root {
+            color-scheme: dark;
+        }
 
-    .hr { height: 1px; background: rgba(255,255,255,0.08); margin: 12px 0; }
-    .pillbar { display: flex; gap: 8px; }
-    .pillbar button {
-      flex: 1;
-      border-radius: 999px;
-      padding: 9px 10px;
-      background: rgba(255,255,255,0.03);
-    }
-    .pillbar button.active {
-      background: rgba(130,200,255,0.16);
-      border-color: rgba(130,200,255,0.35);
-    }
+        body {
+            margin: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+            background: #0b0d12;
+            color: #e9eefc;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            min-height: 100vh;
+        }
 
-    .small { font-size: 11px; opacity: 0.75; line-height: 1.35; margin-top: 6px; }
-    .toast { margin-top: 10px; font-size: 12px; opacity: 0.9; min-height: 18px; }
+        .panel {
+            padding: 14px;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.02);
+            overflow: auto;
+        }
 
-    .card {
-      margin-top: 10px;
-      padding: 10px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,0.10);
-      background: rgba(255,255,255,0.03);
-    }
-    .title { font-weight: 650; font-size: 12px; margin-bottom: 8px; }
-    .alt { font-size: 11px; line-height: 1.45; white-space: pre-wrap; opacity: 0.95; }
+        h1 {
+            font-size: 14px;
+            margin: 0 0 10px;
+            letter-spacing: 0.3px;
+        }
 
-    .list {
-      display: grid;
-      gap: 8px;
-      margin-top: 8px;
-    }
-    .item {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
-      align-items: center;
-      padding: 10px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.10);
-      background: rgba(255,255,255,0.03);
-    }
-    .item .name { font-size: 12px; opacity: 0.95; line-height: 1.2; }
-    .item .subline { font-size: 11px; opacity: 0.7; margin-top: 2px; }
-    .item .controls { display: flex; gap: 6px; align-items: center; }
+        .sub {
+            font-size: 12px;
+            opacity: 0.75;
+            line-height: 1.35;
+            margin-bottom: 10px;
+        }
 
-    .stage { display: grid; place-items: center; padding: 16px; }
-    canvas {
-      width: min(1100px, calc(100vw - 420px));
-      height: auto;
-      border-radius: 18px;
-      box-shadow: 0 20px 80px rgba(0,0,0,0.55);
-      outline: 1px solid rgba(255,255,255,0.10);
-      background: #080a0f;
-    }
+        .row {
+            margin: 10px 0;
+        }
 
-    .progress {
-      width: 100%;
-      height: 6px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.08);
-      overflow: hidden;
-      margin-top: 8px;
-    }
-    .progress > div {
-      height: 100%;
-      width: 0%;
-      background: rgba(130, 200, 255, 0.55);
-    }
+        label {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 6px;
+        }
 
-    .hidden { display: none !important; }
-  </style>
+        input[type="range"] {
+            width: 100%;
+        }
 
-  <!-- JSZip for ZIP exports. Vendor locally for full offline. -->
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.03);
+            color: inherit;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 72px;
+            line-height: 1.35;
+        }
+
+        .btns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 9px 11px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.06);
+            color: inherit;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.09);
+        }
+
+        button.primary {
+            border-color: rgba(130, 200, 255, 0.35);
+        }
+
+        button.danger {
+            border-color: rgba(255, 90, 90, 0.25);
+        }
+
+        button[disabled] {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .hr {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.08);
+            margin: 12px 0;
+        }
+
+        .pillbar {
+            display: flex;
+            gap: 8px;
+        }
+
+        .pillbar button {
+            flex: 1;
+            border-radius: 999px;
+            padding: 9px 10px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .pillbar button.active {
+            background: rgba(130, 200, 255, 0.16);
+            border-color: rgba(130, 200, 255, 0.35);
+        }
+
+        .small {
+            font-size: 11px;
+            opacity: 0.75;
+            line-height: 1.35;
+            margin-top: 6px;
+        }
+
+        .toast {
+            margin-top: 10px;
+            font-size: 12px;
+            opacity: 0.9;
+            min-height: 18px;
+        }
+
+        .card {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .title {
+            font-weight: 650;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .alt {
+            font-size: 11px;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            opacity: 0.95;
+        }
+
+        .list {
+            display: grid;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .item {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: center;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .item .name {
+            font-size: 12px;
+            opacity: 0.95;
+            line-height: 1.2;
+        }
+
+        .item .subline {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+
+        .item .controls {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .stage {
+            display: grid;
+            place-items: center;
+            padding: 16px;
+        }
+
+        canvas {
+            width: min(1100px, calc(100vw - 420px));
+            height: auto;
+            border-radius: 18px;
+            box-shadow: 0 20px 80px rgba(0, 0, 0, 0.55);
+            outline: 1px solid rgba(255, 255, 255, 0.10);
+            background: #080a0f;
+        }
+
+        .progress {
+            width: 100%;
+            height: 6px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress>div {
+            height: 100%;
+            width: 0%;
+            background: rgba(130, 200, 255, 0.55);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+
+    <!-- JSZip for ZIP exports. Vendor locally for full offline. -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 
 <body>
-  <aside class="panel">
-    <h1>Geometric Interior Self-Portrait</h1>
-    <div class="sub">Image mode: craft a landmark → save it. Animation mode: loop smoothly through landmarks.</div>
+    <aside class="panel">
+        <h1>Geometric Interior Self-Portrait</h1>
+        <div class="sub">Image mode: craft a landmark → save it. Animation mode: loop smoothly through landmarks.</div>
 
-    <div class="pillbar">
-      <button id="modeImage" class="active">Image</button>
-      <button id="modeAnim">Animation</button>
-    </div>
-
-    <div class="hr"></div>
-
-    <!-- IMAGE MODE -->
-    <section id="imageModeSection">
-      <div class="row">
-        <label>Seed</label>
-        <input id="seed" type="text" value="quietly-bent-001" />
-        <div class="small">Same seed + same aspects ⇒ same output.</div>
-      </div>
-
-      <div class="row">
-        <label>Coherence <span id="cohLabel"></span></label>
-        <input id="coherence" type="range" min="0" max="1" step="0.01" value="0.78" />
-      </div>
-
-      <div class="row">
-        <label>Tension <span id="tenLabel"></span></label>
-        <input id="tension" type="range" min="0" max="1" step="0.01" value="0.32" />
-      </div>
-
-      <div class="row">
-        <label>Recursion <span id="recLabel"></span></label>
-        <input id="recursion" type="range" min="0" max="1" step="0.01" value="0.62" />
-      </div>
-
-      <div class="row">
-        <label>Motion <span id="motLabel"></span></label>
-        <input id="motion" type="range" min="0" max="1" step="0.01" value="0.55" />
-      </div>
-
-      <div class="row">
-        <label>Vulnerability <span id="vulLabel"></span></label>
-        <input id="vulnerability" type="range" min="0" max="1" step="0.01" value="0.58" />
-      </div>
-
-      <div class="row">
-        <label>Radiance <span id="radLabel"></span></label>
-        <input id="radiance" type="range" min="0" max="1" step="0.01" value="0.70" />
-      </div>
-
-      <div class="row">
-        <label>Note / intent</label>
-        <textarea id="note" placeholder="What part of you is this?"></textarea>
-      </div>
-
-      <div class="row">
-        <label>Save profile name</label>
-        <input id="profileName" type="text" placeholder="e.g. Calm Axis / Night Drift / Tender Permeability" />
-        <div class="btns">
-          <button id="saveProfile" class="primary">Save Profile</button>
-          <button id="renderStill">Render</button>
-          <button id="exportStillZip">Export Still ZIP</button>
+        <div class="pillbar">
+            <button id="modeImage" class="active">Image</button>
+            <button id="modeAnim">Animation</button>
         </div>
-      </div>
-    </section>
 
-    <!-- ANIMATION MODE -->
-    <section id="animModeSection" class="hidden">
-      <div class="row">
-        <label>Animation seed</label>
-        <input id="animSeed" type="text" value="anim-unified-seed-001" />
-        <div class="small">
-          One seed keeps the structure coherent while aspects morph.
-          Playback + export are rendered at <b>24 fps</b>.
+        <div class="hr"></div>
+
+        <!-- IMAGE MODE -->
+        <section id="imageModeSection">
+            <div class="row">
+                <label>Seed</label>
+                <input id="seed" type="text" value="quietly-bent-001" />
+                <div class="small">Same seed + same aspects ⇒ same output.</div>
+            </div>
+
+            <div class="row">
+                <label>Coherence <span id="cohLabel"></span></label>
+                <input id="coherence" type="range" min="0" max="1" step="0.01" value="0.78" />
+            </div>
+
+            <div class="row">
+                <label>Tension <span id="tenLabel"></span></label>
+                <input id="tension" type="range" min="0" max="1" step="0.01" value="0.32" />
+            </div>
+
+            <div class="row">
+                <label>Recursion <span id="recLabel"></span></label>
+                <input id="recursion" type="range" min="0" max="1" step="0.01" value="0.62" />
+            </div>
+
+            <div class="row">
+                <label>Motion <span id="motLabel"></span></label>
+                <input id="motion" type="range" min="0" max="1" step="0.01" value="0.55" />
+            </div>
+
+            <div class="row">
+                <label>Vulnerability <span id="vulLabel"></span></label>
+                <input id="vulnerability" type="range" min="0" max="1" step="0.01" value="0.58" />
+            </div>
+
+            <div class="row">
+                <label>Radiance <span id="radLabel"></span></label>
+                <input id="radiance" type="range" min="0" max="1" step="0.01" value="0.70" />
+            </div>
+
+            <div class="row">
+                <label>Note / intent</label>
+                <textarea id="note" placeholder="What part of you is this?"></textarea>
+            </div>
+
+            <div class="row">
+                <label>Save profile name</label>
+                <input id="profileName" type="text" placeholder="e.g. Calm Axis / Night Drift / Tender Permeability" />
+                <div class="btns">
+                    <button id="saveProfile" class="primary">Save Profile</button>
+                    <button id="renderStill">Render</button>
+                    <button id="exportStillZip">Export Still ZIP</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ANIMATION MODE -->
+        <section id="animModeSection" class="hidden">
+            <div class="row">
+                <label>Animation seed</label>
+                <input id="animSeed" type="text" value="anim-unified-seed-001" />
+                <div class="small">
+                    One seed keeps the structure coherent while aspects morph.
+                    Playback + export are rendered at <b>24 fps</b>.
+                </div>
+            </div>
+
+            <div class="row">
+                <label>Add saved profile to loop</label>
+                <select id="profileSelect"></select>
+                <div class="btns">
+                    <button id="addToLoop" class="primary">Add</button>
+                    <button id="clearLoop" class="danger">Clear</button>
+                    <button id="loadDemoLoop">Load Demo</button>
+                </div>
+            </div>
+
+            <div class="row">
+                <label>Loop landmarks</label>
+                <div id="loopList" class="list"></div>
+                <div class="small">
+                    Under the hood: a seamless spline loop + “breathing” time-warp + temporal motion blur accumulation.
+                </div>
+            </div>
+
+            <div class="btns">
+                <button id="playPause" class="primary">Play</button>
+                <button id="exportAnimZip">Export Animation ZIP</button>
+            </div>
+            <div class="progress" aria-label="Animation progress">
+                <div id="progressBar"></div>
+            </div>
+        </section>
+
+        <div class="hr"></div>
+
+        <div class="card">
+            <div class="title" id="titleText"></div>
+            <div class="alt" id="altText"></div>
         </div>
-      </div>
 
-      <div class="row">
-        <label>Add saved profile to loop</label>
-        <select id="profileSelect"></select>
-        <div class="btns">
-          <button id="addToLoop" class="primary">Add</button>
-          <button id="clearLoop" class="danger">Clear</button>
-          <button id="loadDemoLoop">Load Demo</button>
-        </div>
-      </div>
-
-      <div class="row">
-        <label>Loop landmarks</label>
-        <div id="loopList" class="list"></div>
-        <div class="small">
-          Under the hood: a seamless spline loop + “breathing” time-warp + temporal motion blur accumulation.
-        </div>
-      </div>
-
-      <div class="btns">
-        <button id="playPause" class="primary">Play</button>
-        <button id="exportAnimZip">Export Animation ZIP</button>
-      </div>
-      <div class="progress" aria-label="Animation progress"><div id="progressBar"></div></div>
-    </section>
-
-    <div class="hr"></div>
-
-    <div class="card">
-      <div class="title" id="titleText"></div>
-      <div class="alt" id="altText"></div>
-    </div>
-
-    <div class="toast" id="toast"></div>
-  </aside>
-
-  <main class="stage">
-    <canvas id="c" width="1400" height="900"></canvas>
-  </main>
-
-<script>
-/* ============================================================
- * Simplified UI + Seamless Looping + Time-Warp + 24 FPS
- * + Motion blur accumulation via a decay buffer.
- * ============================================================
- *
- * Seamless loop:
- * - 3+ landmarks: closed Catmull–Rom spline per aspect slider.
- * - 2 landmarks: cosine A<->B loop.
- *
- * Time-warp (“breathing”):
- * - per-segment remap that slows near keyframes and speeds mid-segment.
- * - seamless because each segment remap maps [0,1] -> [0,1]
- *
- * FPS:
- * - Playback renders at 24fps (fixed frame scheduler)
- * - Export records 1 full loop at 24fps
- *
- * Motion blur (decay buffer):
- * - Keeps an accumulation buffer that decays each frame, then adds current frame.
- * - Produces smooth persistence without brightening as much as naive overlay.
- * - Enabled only in animation mode (playback + export). Still renders remain crisp.
- *
- * Exports ALWAYS include title + alt text:
- * - Still ZIP: image.png + title.txt + alt-text.txt + note.txt + metadata.json
- * - Anim ZIP: animation.<ext> OR frames/* + title.txt + alt-text.txt + keyframes.json + manifest.json
- */
-
-/* ---------------------------
- * Under-the-hood constants
- * ---------------------------
- */
-const ANIM_FPS = 24;
-
-// 0..1: strength of “linger at landmarks”
-const TIME_WARP_STRENGTH = 0.78;
-
-// Motion blur accumulation (temporal)
-const MOTION_BLUR_ENABLED = true;
-
-// How quickly the accumulated buffer fades each frame.
-// Higher => shorter trails (less blur). Typical: 0.12..0.25
-const MB_DECAY = 0.18;
-
-// How strongly the current frame is added into the accumulation.
-// Higher => crisper but more smear. Typical: 0.75..1.0
-const MB_ADD = 0.90;
-
-const FIXED_LOOP_SECONDS = 30;
-const FIXED_LOOP_MS = FIXED_LOOP_SECONDS * 1000;
-
-/* ---------------------------
- * Deterministic PRNG
- * ---------------------------
- */
-function xmur3(str) {
-  let h = 1779033703 ^ str.length;
-  for (let i = 0; i < str.length; i++) {
-    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
-    h = (h << 13) | (h >>> 19);
-  }
-  return function() {
-    h = Math.imul(h ^ (h >>> 16), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    h ^= h >>> 16;
-    return h >>> 0;
-  };
-}
-function mulberry32(a) {
-  return function() {
-    let t = a += 0x6D2B79F5;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-function clamp01(x){ return Math.max(0, Math.min(1, x)); }
-function lerp(a,b,t){ return a + (b-a)*t; }
-
-/* ---------------------------
- * DOM
- * ---------------------------
- */
-const canvas = document.getElementById("c");
-const ctx = canvas.getContext("2d");
-
-const el = {
-  modeImage: document.getElementById("modeImage"),
-  modeAnim: document.getElementById("modeAnim"),
-  imageSection: document.getElementById("imageModeSection"),
-  animSection: document.getElementById("animModeSection"),
-
-  seed: document.getElementById("seed"),
-  animSeed: document.getElementById("animSeed"),
-
-  coherence: document.getElementById("coherence"),
-  tension: document.getElementById("tension"),
-  recursion: document.getElementById("recursion"),
-  motion: document.getElementById("motion"),
-  vulnerability: document.getElementById("vulnerability"),
-  radiance: document.getElementById("radiance"),
-
-  cohLabel: document.getElementById("cohLabel"),
-  tenLabel: document.getElementById("tenLabel"),
-  recLabel: document.getElementById("recLabel"),
-  motLabel: document.getElementById("motLabel"),
-  vulLabel: document.getElementById("vulLabel"),
-  radLabel: document.getElementById("radLabel"),
-
-  note: document.getElementById("note"),
-  profileName: document.getElementById("profileName"),
-  saveProfile: document.getElementById("saveProfile"),
-  renderStill: document.getElementById("renderStill"),
-  exportStillZip: document.getElementById("exportStillZip"),
-
-  profileSelect: document.getElementById("profileSelect"),
-  addToLoop: document.getElementById("addToLoop"),
-  clearLoop: document.getElementById("clearLoop"),
-  loadDemoLoop: document.getElementById("loadDemoLoop"),
-  loopList: document.getElementById("loopList"),
-  playPause: document.getElementById("playPause"),
-  exportAnimZip: document.getElementById("exportAnimZip"),
-  progressBar: document.getElementById("progressBar"),
-
-  titleText: document.getElementById("titleText"),
-  altText: document.getElementById("altText"),
-  toast: document.getElementById("toast"),
-};
-
-function toast(msg) {
-  el.toast.textContent = msg;
-  if (!msg) return;
-  setTimeout(() => { if (el.toast.textContent === msg) el.toast.textContent = ""; }, 2400);
-}
-
-function readAspectsFromUI() {
-  return {
-    coherence: parseFloat(el.coherence.value),
-    tension: parseFloat(el.tension.value),
-    recursion: parseFloat(el.recursion.value),
-    motion: parseFloat(el.motion.value),
-    vulnerability: parseFloat(el.vulnerability.value),
-    radiance: parseFloat(el.radiance.value),
-  };
-}
-function updateAspectLabels(a) {
-  el.cohLabel.textContent = a.coherence.toFixed(2);
-  el.tenLabel.textContent = a.tension.toFixed(2);
-  el.recLabel.textContent = a.recursion.toFixed(2);
-  el.motLabel.textContent = a.motion.toFixed(2);
-  el.vulLabel.textContent = a.vulnerability.toFixed(2);
-  el.radLabel.textContent = a.radiance.toFixed(2);
-}
-function readNote() { return (el.note.value ?? "").trim(); }
-
-/* ---------------------------
- * Motion blur (decay buffer)
- * ---------------------------
- * Implementation:
- * - We keep an offscreen buffer "acc" that stores the accumulated image.
- * - Each frame:
- *   1) decay: acc = acc * (1 - MB_DECAY)    (implemented by drawing a translucent black rect with destination-in)
- *   2) add:   acc += current * MB_ADD       (implemented by drawing current on top with source-over + alpha)
- *   3) present: draw acc onto main canvas
- *
- * This avoids the “brightening” that naive previous-frame overlays can cause.
- */
-const motionBlur = (() => {
-  const acc = document.createElement("canvas");
-  const accCtx = acc.getContext("2d", { alpha: true });
-
-  let enabled = false;
-
-  function resizeToMatchMainCanvas() {
-    acc.width = canvas.width;
-    acc.height = canvas.height;
-    clear();
-  }
-
-  function clear() {
-    accCtx.save();
-    accCtx.globalCompositeOperation = "source-over";
-    accCtx.clearRect(0, 0, acc.width, acc.height);
-    accCtx.restore();
-  }
-
-  function setEnabled(v) {
-    enabled = !!v;
-    if (!enabled) clear();
-  }
-
-  function apply() {
-    if (!enabled) return;
-
-    // 1) decay existing accumulation
-    // destination-in keeps destination where source alpha exists; use it with alpha < 1 to fade.
-    accCtx.save();
-    accCtx.globalCompositeOperation = "destination-in";
-    accCtx.globalAlpha = 1 - clamp01(MB_DECAY);
-    accCtx.fillStyle = "rgba(0,0,0,1)";
-    accCtx.fillRect(0, 0, acc.width, acc.height);
-    accCtx.restore();
-
-    // 2) add current frame
-    accCtx.save();
-    accCtx.globalCompositeOperation = "source-over";
-    accCtx.globalAlpha = clamp01(MB_ADD);
-    accCtx.drawImage(canvas, 0, 0);
-    accCtx.restore();
-
-    // 3) present accumulation to main canvas (overwrite main with accumulated)
-    ctx.save();
-    ctx.globalCompositeOperation = "source-over";
-    ctx.globalAlpha = 1.0;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(acc, 0, 0);
-    ctx.restore();
-  }
-
-  resizeToMatchMainCanvas();
-
-  return { resizeToMatchMainCanvas, clear, setEnabled, apply };
-})();
-
-/* ---------------------------
- * Profiles (localStorage)
- * ---------------------------
- */
-const LS_KEY = "geo_self_portrait_profiles_v3";
-
-function loadProfiles() {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return {};
-    return parsed;
-  } catch {
-    return {};
-  }
-}
-function saveProfiles(profiles) {
-  localStorage.setItem(LS_KEY, JSON.stringify(profiles, null, 2));
-}
-function refreshProfileSelect() {
-  const profiles = loadProfiles();
-  const names = Object.keys(profiles).sort((a,b) => a.localeCompare(b));
-
-  el.profileSelect.innerHTML = "";
-  const empty = document.createElement("option");
-  empty.value = "";
-  empty.textContent = names.length ? "— Select a saved profile —" : "— No profiles yet —";
-  el.profileSelect.appendChild(empty);
-
-  for (const name of names) {
-    const opt = document.createElement("option");
-    opt.value = name;
-    opt.textContent = name;
-    el.profileSelect.appendChild(opt);
-  }
-}
-
-function ensureStarterProfiles() {
-  const profiles = loadProfiles();
-  if (Object.keys(profiles).length > 0) return;
-
-  const starter = {
-    "Calm Axis (Starter)": {
-      seed: "calm-axis-001",
-      note: "Stable symmetry. Gentle closure.",
-      aspects: { coherence: 0.92, tension: 0.12, recursion: 0.46, motion: 0.25, vulnerability: 0.35, radiance: 0.62 }
-    },
-    "Quietly Bent (Starter)": {
-      seed: "quietly-bent-001",
-      note: "Coherence that bends without breaking.",
-      aspects: { coherence: 0.78, tension: 0.32, recursion: 0.62, motion: 0.55, vulnerability: 0.58, radiance: 0.70 }
-    },
-    "Night Drift (Starter)": {
-      seed: "night-drift-001",
-      note: "Layered revision under dim light.",
-      aspects: { coherence: 0.55, tension: 0.42, recursion: 0.74, motion: 0.78, vulnerability: 0.52, radiance: 0.40 }
-    },
-    "Tender Permeability (Starter)": {
-      seed: "tender-perm-001",
-      note: "Boundaries soften; overlap becomes intimacy.",
-      aspects: { coherence: 0.62, tension: 0.22, recursion: 0.58, motion: 0.42, vulnerability: 0.88, radiance: 0.74 }
-    }
-  };
-
-  saveProfiles(starter);
-}
-
-/* ---------------------------
- * Loop list (landmarks)
- * ---------------------------
- */
-let loopLandmarks = []; // array of profile names in order
-
-function loopRender() {
-  el.loopList.innerHTML = "";
-  if (loopLandmarks.length === 0) {
-    const d = document.createElement("div");
-    d.className = "small";
-    d.textContent = "Add 2+ profiles to build a loop.";
-    el.loopList.appendChild(d);
-    return;
-  }
-
-  const profiles = loadProfiles();
-
-  loopLandmarks.forEach((name, idx) => {
-    const p = profiles[name];
-    const div = document.createElement("div");
-    div.className = "item";
-
-    const left = document.createElement("div");
-    const nm = document.createElement("div");
-    nm.className = "name";
-    nm.textContent = `${idx+1}. ${name}`;
-    const sub = document.createElement("div");
-    sub.className = "subline";
-    if (p?.aspects) {
-      const a = p.aspects;
-      sub.textContent = `coh ${a.coherence.toFixed(2)} · ten ${a.tension.toFixed(2)} · rec ${a.recursion.toFixed(2)} · mot ${a.motion.toFixed(2)} · vul ${a.vulnerability.toFixed(2)} · rad ${a.radiance.toFixed(2)}`;
-    } else {
-      sub.textContent = "missing profile";
-    }
-    left.appendChild(nm);
-    left.appendChild(sub);
-
-    const controls = document.createElement("div");
-    controls.className = "controls";
-
-    const up = document.createElement("button");
-    up.textContent = "↑";
-    up.disabled = idx === 0;
-    up.addEventListener("click", () => {
-      const t = loopLandmarks[idx-1];
-      loopLandmarks[idx-1] = loopLandmarks[idx];
-      loopLandmarks[idx] = t;
-      loopRender();
-    });
-
-    const down = document.createElement("button");
-    down.textContent = "↓";
-    down.disabled = idx === loopLandmarks.length - 1;
-    down.addEventListener("click", () => {
-      const t = loopLandmarks[idx+1];
-      loopLandmarks[idx+1] = loopLandmarks[idx];
-      loopLandmarks[idx] = t;
-      loopRender();
-    });
-
-    const remove = document.createElement("button");
-    remove.textContent = "✕";
-    remove.className = "danger";
-    remove.addEventListener("click", () => {
-      loopLandmarks.splice(idx, 1);
-      loopRender();
-    });
-
-    controls.appendChild(up);
-    controls.appendChild(down);
-    controls.appendChild(remove);
-
-    div.appendChild(left);
-    div.appendChild(controls);
-    el.loopList.appendChild(div);
-  });
-}
-
-/* ---------------------------
- * Aspect -> derived render parameters
- * ---------------------------
- */
-function deriveParams(a, rng) {
-  const symmetry = clamp01(lerp(0.25, 0.95, a.coherence) * (1 - 0.25*a.tension));
-  const fracture = clamp01(lerp(0.05, 0.85, a.tension) * (1 - 0.18*a.coherence));
-  const density = clamp01(lerp(0.15, 0.95, a.recursion) + 0.08*a.vulnerability);
-  const flow = clamp01(lerp(0.00, 0.95, a.motion) * (1 - 0.12*a.coherence) + 0.03*a.tension);
-  const lum = clamp01(lerp(0.15, 0.95, a.radiance));
-  const bleed = clamp01(lerp(0.00, 1.00, a.vulnerability) * (1 - 0.35*a.tension));
-  const edgeSharpness = clamp01(lerp(0.15, 0.95, a.tension) * (1 - 0.45*a.vulnerability));
-  const multiAxis = clamp01((1 - a.coherence) * a.tension);
-
-  const paletteWobble = (rng()*2 - 1) * 14;
-  const baseHue =
-    (a.radiance > 0.62)
-      ? lerp(215, 315, rng())
-      : lerp(190, 285, rng());
-  const hue = (baseHue + lerp(-35, 45, a.tension) + paletteWobble + 360) % 360;
-
-  const nodeCount = Math.floor(lerp(3, 11, density));
-  const shardLayers = 2 + Math.floor(lerp(1, 6, density));
-  const shardsPerLayer = 10 + Math.floor(lerp(8, 36, density));
-
-  const grain = lerp(0.02, 0.08, 1 - lum) + 0.02*fracture;
-  const shardAlphaBase = lerp(0.04, 0.12, lum) * lerp(0.9, 1.25, 1 - edgeSharpness);
-  const shardAlpha = clamp01(shardAlphaBase + 0.05*bleed);
-
-  return { symmetry, fracture, density, flow, lum, bleed, edgeSharpness, multiAxis, hue, nodeCount, shardLayers, shardsPerLayer, grain, shardAlpha };
-}
-
-/* ---------------------------
- * Rendering helpers
- * ---------------------------
- */
-function hsl(h, s, l, a=1) { return `hsla(${h}, ${s}%, ${l}%, ${a})`; }
-function clear(bg) {
-  ctx.save();
-  ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = bg;
-  ctx.fillRect(0,0,canvas.width, canvas.height);
-  ctx.restore();
-}
-function vignette(alpha=0.55) {
-  const w = canvas.width, h = canvas.height;
-  const g = ctx.createRadialGradient(w*0.5, h*0.52, Math.min(w,h)*0.12, w*0.5, h*0.52, Math.min(w,h)*0.62);
-  g.addColorStop(0, `rgba(0,0,0,0)`);
-  g.addColorStop(1, `rgba(0,0,0,${alpha})`);
-  ctx.fillStyle = g;
-  ctx.fillRect(0,0,w,h);
-}
-function softGlow(x, y, r, a) {
-  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, `rgba(255,255,255,${a})`);
-  g.addColorStop(1, `rgba(255,255,255,0)`);
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI*2);
-  ctx.fill();
-}
-function addGrain(rng, amount=0.05) {
-  const W = canvas.width, H = canvas.height;
-  const img = ctx.getImageData(0,0,W,H);
-  const d = img.data;
-  const a = amount * 255;
-  for (let i=0; i<d.length; i+=4) {
-    const n = (rng()*2-1) * a;
-    d[i]   = Math.max(0, Math.min(255, d[i] + n));
-    d[i+1] = Math.max(0, Math.min(255, d[i+1] + n));
-    d[i+2] = Math.max(0, Math.min(255, d[i+2] + n));
-  }
-  ctx.putImageData(img,0,0);
-}
-function signedNoise2D(x, y) {
-  return (
-    Math.sin(x*0.012 + 10.0) +
-    Math.sin(y*0.015 - 4.0) +
-    Math.sin((x+y)*0.008 + 2.7)
-  ) / 3.0;
-}
-
-/* ---------------------------
- * Title + Alt-text
- * ---------------------------
- */
-function generateTitle(aspects, rng) {
-  const coh = aspects.coherence, ten = aspects.tension, rec = aspects.recursion, mot = aspects.motion, vul = aspects.vulnerability, rad = aspects.radiance;
-
-  const coherenceWord = coh > 0.82 ? "Axis of Certainty" : coh > 0.60 ? "Measured Reflection" : "Unstable Mirror";
-  const tensionWord = ten > 0.70 ? "Fractured" : ten > 0.40 ? "Under Tension" : "Quietly Bent";
-  const recursionWord = rec > 0.72 ? "Recursive Field" : rec > 0.42 ? "Layered Model" : "Sparse Geometry";
-  const motionWord = mot > 0.70 ? "Predictive Drift" : mot > 0.40 ? "Directional Echo" : "Latent Motion";
-  const boundaryWord = vul > 0.70 ? "Permeable" : vul > 0.40 ? "Soft-Boundary" : "Hard-Edged";
-  const radianceWord = rad > 0.75 ? "Luminous" : rad > 0.50 ? "Soft Radiance" : "Dark Coherence";
-
-  const templates = [
-    `${tensionWord} ${recursionWord}`,
-    `${radianceWord}: ${coherenceWord}`,
-    `${motionWord} Across ${coherenceWord}`,
-    `${boundaryWord} ${recursionWord}`,
-    `${coherenceWord}, ${tensionWord}`,
-    `${radianceWord} ${recursionWord}`,
-    `${motionWord} in ${radianceWord}`,
-    `${boundaryWord} ${tensionWord} ${recursionWord}`,
-  ];
-
-  return templates[Math.floor(rng() * templates.length)];
-}
-
-function generateAltText(aspects, nodeCount, title) {
-  const coherencePhrase = aspects.coherence > 0.82 ? "strong, almost ritual symmetry" : aspects.coherence > 0.62 ? "clear symmetry with deliberate slippage" : "loose symmetry, more suggestion than rule";
-  const tensionPhrase = aspects.tension > 0.66 ? "visible fracture and purposeful misalignment" : aspects.tension > 0.34 ? "subtle tension at the edges of coherence" : "a mostly stable structure with faint stress lines";
-  const recursionPhrase = aspects.recursion > 0.72 ? "densely layered, recursive geometry" : aspects.recursion > 0.46 ? "layered translucent polygons" : "a sparse set of geometric shards";
-  const motionPhrase = aspects.motion > 0.70 ? "a prominent flow-field of vectors that bends and re-bends" : aspects.motion > 0.40 ? "a soft vector field suggesting prediction and revision" : "only a faint hint of directional flow";
-  const boundaryPhrase = aspects.vulnerability > 0.70 ? "boundaries that bleed softly through each other" : aspects.vulnerability > 0.40 ? "semi-permeable edges where overlaps accumulate" : "edges that hold their separation";
-  const tonePhrase = aspects.radiance > 0.75 ? "bright, glassy radiance" : aspects.radiance > 0.50 ? "soft, steady glow" : "low-light coherence";
-
-  return [
-    `Title: ${title}`,
-    ``,
-    `Alt-text (interpretive):`,
-    `A near-black luminous field carries ${recursionPhrase}, arranged with ${coherencePhrase}.`,
-    `The forms overlap without fully merging—${boundaryPhrase}—while ${tensionPhrase} keeps the structure honest.`,
-    `Across the surface, ${motionPhrase} like thought made visible: short paths that imply direction, then curve under revision.`,
-    `${nodeCount} attractor nodes punctuate the composition, suggesting stable commitments that still radiate change.`,
-    `Overall mood: ${tonePhrase}; coherence under revision; connection and separateness held in the same geometry.`
-  ].join("\n");
-}
-
-/* ---------------------------
- * Render (seed + aspects) -> draws canvas + updates title/alt
- * ---------------------------
- * Note: this draws a "raw frame" to the main canvas.
- * In animation mode, we then pass it through the motion blur decay buffer,
- * which overwrites the main canvas with the accumulated version.
- */
-function renderWith(seedStr, aspects) {
-  const seedFn = xmur3(seedStr);
-  const rng = mulberry32(seedFn());
-
-  const p = deriveParams(aspects, rng);
-  const title = generateTitle(aspects, rng);
-
-  const W = canvas.width, H = canvas.height;
-  const cx = W * 0.5, cy = H * 0.52;
-
-  const bg = hsl(p.hue, 35, lerp(5, 12, p.lum), 1);
-  clear(bg);
-
-  // Field glow
-  ctx.save();
-  ctx.globalCompositeOperation = "screen";
-  const glowCount = 5 + Math.floor(lerp(1, 8, aspects.radiance));
-  for (let i=0; i<glowCount; i++) {
-    const x = lerp(W*0.20, W*0.80, rng());
-    const y = lerp(H*0.22, H*0.78, rng());
-    const r = lerp(220, 560, rng()) * lerp(0.7, 1.1, aspects.radiance);
-    const alpha = lerp(0.02, 0.10, aspects.radiance) * (0.65 + 0.7*rng());
-    softGlow(x, y, r, alpha);
-  }
-  ctx.restore();
-
-  // Nodes
-  const nodes = [];
-  for (let i=0; i<p.nodeCount; i++) {
-    const r = lerp(10, 28, rng());
-    const x = lerp(W*0.20, W*0.80, rng());
-    const y = lerp(H*0.22, H*0.82, rng());
-    nodes.push({x, y, r});
-  }
-
-  // Symmetry axis hint
-  const axisAlpha = lerp(0.00, 0.08, p.symmetry) * (1 - 0.35*p.fracture);
-  if (axisAlpha > 0.001) {
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.strokeStyle = `rgba(255,255,255,${axisAlpha})`;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(cx, H*0.10);
-    ctx.lineTo(cx, H*0.92);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function mirrorX(x) {
-    const dx = x - cx;
-    const perfect = cx - dx;
-    const fractured = perfect + (rng()*2-1) * (p.fracture * 95);
-    const axisSkew = (rng()*2-1) * (p.multiAxis * 60);
-    return lerp(fractured + axisSkew, perfect, p.symmetry);
-  }
-
-  // Shards
-  for (let layer=0; layer<p.shardLayers; layer++) {
-    const hue = (p.hue + lerp(-35, 75, rng()) + layer*lerp(8, 18, rng())) % 360;
-    const sat = lerp(35, 78, clamp01(p.lum + 0.15*rng()));
-    const light = lerp(36, 72, clamp01(p.lum + 0.20*rng()));
-    const layerT = 1 - layer / (p.shardLayers + 1);
-
-    const alpha = p.shardAlpha * lerp(0.65, 1.25, layerT) * (1 + 0.35*p.bleed) * (1 - 0.18*p.edgeSharpness);
-
-    ctx.save();
-    ctx.globalCompositeOperation = (p.bleed > 0.55) ? "screen" : ((layer % 2 === 0) ? "lighter" : "screen");
-
-    ctx.fillStyle = hsl(hue, sat, light, alpha);
-    ctx.strokeStyle = hsl(hue, sat, light, alpha * 1.15);
-
-    for (let s=0; s<p.shardsPerLayer; s++) {
-      const sides = 3 + Math.floor(rng()*5);
-      const radius = lerp(60, 235, rng()) * lerp(0.75, 1.10, layerT);
-      const angle0 = rng() * Math.PI * 2;
-
-      let x0 = lerp(W*0.18, W*0.82, rng());
-      let y0 = lerp(H*0.18, H*0.86, rng());
-
-      const n = nodes[Math.floor(rng()*nodes.length)];
-      const attract = lerp(0.05, 0.24, p.density) * (0.7 + 0.7*rng());
-      x0 = lerp(x0, n.x, attract);
-      y0 = lerp(y0, n.y, attract);
-
-      x0 += (rng()*2-1) * (p.bleed * 24);
-      y0 += (rng()*2-1) * (p.bleed * 24);
-
-      drawShard(ctx, x0, y0, radius, sides, angle0, rng, p);
-
-      const xm = mirrorX(x0);
-      const ym = y0 + (rng()*2-1) * p.fracture * 18;
-      drawShard(ctx, xm, ym, radius * lerp(0.92, 1.06, rng()), sides, angle0 + (rng()*2-1)*p.fracture*0.25, rng, p);
-    }
-
-    ctx.restore();
-  }
-
-  function drawShard(ctx, x, y, radius, sides, angle0, rng, p) {
-    const wobbleBase = lerp(0.22, 0.10, p.edgeSharpness) + p.fracture*0.12;
-    const wobble = wobbleBase * (1 + 0.25*p.bleed);
-
-    ctx.beginPath();
-    for (let i=0; i<sides; i++) {
-      const t = i / sides;
-      const ang = angle0 + t*Math.PI*2;
-      const w = 1 + (rng()*2-1) * wobble;
-      const rr = radius * w * (0.92 + 0.16*Math.sin(ang*2 + rng()*2));
-      const px = x + Math.cos(ang) * rr;
-      const py = y + Math.sin(ang) * rr;
-      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.lineWidth = lerp(0.6, 1.6, 1 - p.edgeSharpness) * (0.7 + 0.6*rng());
-    ctx.stroke();
-  }
-
-  // Flow field
-  if (p.flow > 0.01) {
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.lineCap = "round";
-
-    const grid = Math.floor(lerp(34, 92, clamp01(0.65*p.flow + 0.35*p.density)));
-    const stepX = W / grid;
-    const stepY = H / Math.floor(grid * (H/W));
-
-    const hue = (p.hue + 120) % 360;
-    ctx.strokeStyle = hsl(hue, lerp(28, 62, p.lum), lerp(52, 80, p.lum), lerp(0.06, 0.24, p.flow) * (1 + 0.25*p.bleed));
-
-    for (let gy=0; gy<=H; gy+=stepY) {
-      for (let gx=0; gx<=W; gx+=stepX) {
-        const dx = gx - cx;
-        const dy = gy - cy;
-
-        let ang = Math.atan2(dy, dx) + Math.PI/2;
-        const localNoise = signedNoise2D(gx, gy);
-        const curvature = lerp(0.4, 2.2, p.flow) * (1 + 0.6*p.fracture) * (1 - 0.25*p.symmetry);
-        ang += localNoise * curvature;
-
-        // nearest node pull
-        let nearest = nodes[0], bestD = Infinity;
-        for (const n of nodes) {
-          const dd = (gx-n.x)*(gx-n.x) + (gy-n.y)*(gy-n.y);
-          if (dd < bestD) { bestD = dd; nearest = n; }
+        <div class="toast" id="toast"></div>
+    </aside>
+
+    <main class="stage">
+        <canvas id="c" width="1400" height="900"></canvas>
+    </main>
+
+    <script>
+        /* ============================================================
+         * Simplified UI + Seamless Looping + Time-Warp + 24 FPS
+         * + Motion blur accumulation via a decay buffer.
+         * ============================================================
+         *
+         * Seamless loop:
+         * - 3+ landmarks: closed Catmull–Rom spline per aspect slider.
+         * - 2 landmarks: cosine A<->B loop.
+         *
+         * Time-warp (“breathing”):
+         * - per-segment remap that slows near keyframes and speeds mid-segment.
+         * - seamless because each segment remap maps [0,1] -> [0,1]
+         *
+         * FPS:
+         * - Playback renders at 24fps (fixed frame scheduler)
+         * - Export records 1 full loop at 24fps
+         *
+         * Motion blur (decay buffer):
+         * - Keeps an accumulation buffer that decays each frame, then adds current frame.
+         * - Produces smooth persistence without brightening as much as naive overlay.
+         * - Enabled only in animation mode (playback + export). Still renders remain crisp.
+         *
+         * Exports ALWAYS include title + alt text:
+         * - Still ZIP: image.png + title.txt + alt-text.txt + note.txt + metadata.json
+         * - Anim ZIP: animation.<ext> OR frames/* + title.txt + alt-text.txt + keyframes.json + manifest.json
+         */
+
+        /* ---------------------------
+         * Under-the-hood constants
+         * ---------------------------
+         */
+        const ANIM_FPS = 24;
+
+        // 0..1: strength of “linger at landmarks”
+        const TIME_WARP_STRENGTH = 0.78;
+
+        // Motion blur accumulation (temporal)
+        const MOTION_BLUR_ENABLED = true;
+
+        // How quickly the accumulated buffer fades each frame.
+        // Higher => shorter trails (less blur). Typical: 0.12..0.25
+        const MB_DECAY = 0.18;
+
+        // How strongly the current frame is added into the accumulation.
+        // Higher => crisper but more smear. Typical: 0.75..1.0
+        const MB_ADD = 0.90;
+
+        const FIXED_LOOP_SECONDS = 30;
+        const FIXED_LOOP_MS = FIXED_LOOP_SECONDS * 1000;
+
+        /* ---------------------------
+         * Deterministic PRNG
+         * ---------------------------
+         */
+        function xmur3(str) {
+            let h = 1779033703 ^ str.length;
+            for (let i = 0; i < str.length; i++) {
+                h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+                h = (h << 13) | (h >>> 19);
+            }
+            return function () {
+                h = Math.imul(h ^ (h >>> 16), 2246822507);
+                h = Math.imul(h ^ (h >>> 13), 3266489909);
+                h ^= h >>> 16;
+                return h >>> 0;
+            };
         }
-        const toN = Math.atan2(nearest.y - gy, nearest.x - gx);
-        ang = lerp(ang, toN, lerp(0.02, 0.14, p.density));
-
-        // multi-axis drift
-        if (p.multiAxis > 0.01) {
-          const altCenterX = cx + (gx < cx ? -1 : 1) * (p.multiAxis * 170);
-          const altDx = gx - altCenterX;
-          const altAng = Math.atan2(dy, altDx) + Math.PI/2;
-          ang = lerp(ang, altAng, p.multiAxis * 0.45);
+        function mulberry32(a) {
+            return function () {
+                let t = a += 0x6D2B79F5;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
         }
-
-        const len = lerp(4, 18, p.flow) * (0.7 + 0.6*rng());
-        const x2 = gx + Math.cos(ang) * len;
-        const y2 = gy + Math.sin(ang) * len;
-
-        ctx.lineWidth = lerp(0.6, 1.8, p.flow) * (0.6 + 0.7*rng()) * (1 - 0.15*p.edgeSharpness);
-        ctx.beginPath();
-        ctx.moveTo(gx, gy);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-      }
-    }
-    ctx.restore();
-  }
-
-  // Node glows
-  ctx.save();
-  ctx.globalCompositeOperation = "screen";
-  for (const n of nodes) {
-    const glowR = n.r * lerp(6.5, 12.0, p.lum) * (1 + 0.35*p.bleed);
-    softGlow(n.x, n.y, glowR, lerp(0.02, 0.09, aspects.radiance));
-    softGlow(mirrorX(n.x), n.y, glowR * 0.92, lerp(0.015, 0.065, aspects.radiance));
-  }
-  ctx.restore();
-
-  vignette(lerp(0.32, 0.70, 1 - p.lum));
-  addGrain(rng, clamp01(p.grain));
-
-  const altText = generateAltText(aspects, nodes.length, title);
-  el.titleText.textContent = title;
-  el.altText.textContent = altText;
-
-  return { title, altText, nodeCount: nodes.length, derived: p };
-}
-
-/* ---------------------------
- * Seamless animation interpolation + time-warp
- * ---------------------------
- */
-function smootherstep(t) {
-  t = clamp01(t);
-  return t*t*t*(t*(t*6 - 15) + 10);
-}
-function warpSegmentT(t, strength) {
-  const w = smootherstep(t);
-  return lerp(t, w, clamp01(strength));
-}
-function cosineEase(t) {
-  return 0.5 - 0.5 * Math.cos(Math.PI * t);
-}
-function catmullRom(p0, p1, p2, p3, t) {
-  const t2 = t * t;
-  const t3 = t2 * t;
-  return 0.5 * (
-    (2 * p1) +
-    (-p0 + p2) * t +
-    (2*p0 - 5*p1 + 4*p2 - p3) * t2 +
-    (-p0 + 3*p1 - 3*p2 + p3) * t3
-  );
-}
-
-function getLandmarkAspectsOrdered() {
-  const profiles = loadProfiles();
-  const arr = [];
-  for (const name of loopLandmarks) {
-    const p = profiles[name];
-    if (p?.aspects) arr.push({ name, ...p });
-  }
-  return arr;
-}
-
-function evalAspectsAt(tNorm, landmarks) {
-  const n = landmarks.length;
-  if (n < 2) return null;
-
-  if (n === 2) {
-    const a0 = landmarks[0].aspects;
-    const a1 = landmarks[1].aspects;
-
-    const phase = (tNorm < 0.5) ? (tNorm * 2) : (2 - tNorm * 2);
-    const warped = warpSegmentT(phase, TIME_WARP_STRENGTH * 0.55);
-    const u = cosineEase(warped);
-
-    return {
-      coherence: lerp(a0.coherence, a1.coherence, u),
-      tension: lerp(a0.tension, a1.tension, u),
-      recursion: lerp(a0.recursion, a1.recursion, u),
-      motion: lerp(a0.motion, a1.motion, u),
-      vulnerability: lerp(a0.vulnerability, a1.vulnerability, u),
-      radiance: lerp(a0.radiance, a1.radiance, u),
-    };
-  }
-
-  const seg = tNorm * n;
-  const i1 = Math.floor(seg) % n;
-  const tLinear = seg - Math.floor(seg);
-
-  const t = warpSegmentT(tLinear, TIME_WARP_STRENGTH);
-
-  const i0 = (i1 - 1 + n) % n;
-  const i2 = (i1 + 1) % n;
-  const i3 = (i1 + 2) % n;
-
-  const A0 = landmarks[i0].aspects;
-  const A1 = landmarks[i1].aspects;
-  const A2 = landmarks[i2].aspects;
-  const A3 = landmarks[i3].aspects;
-
-  return {
-    coherence: clamp01(catmullRom(A0.coherence, A1.coherence, A2.coherence, A3.coherence, t)),
-    tension: clamp01(catmullRom(A0.tension, A1.tension, A2.tension, A3.tension, t)),
-    recursion: clamp01(catmullRom(A0.recursion, A1.recursion, A2.recursion, A3.recursion, t)),
-    motion: clamp01(catmullRom(A0.motion, A1.motion, A2.motion, A3.motion, t)),
-    vulnerability: clamp01(catmullRom(A0.vulnerability, A1.vulnerability, A2.vulnerability, A3.vulnerability, t)),
-    radiance: clamp01(catmullRom(A0.radiance, A1.radiance, A2.radiance, A3.radiance, t)),
-  };
-}
-
-/* ---------------------------
- * Animation loop (24 fps fixed frame scheduler)
- * ---------------------------
- */
-let anim = {
-  playing: false,
-  startMs: 0,
-  durationMs: 22000,
-  lastFrameIndex: -1,
-};
-
-function computeDurationMs(numLandmarks) {
-  const base = 16000;
-  const extra = Math.max(0, numLandmarks - 2) * 3500;
-  return Math.min(60000, base + extra);
-}
-
-function tick(nowMs) {
-  if (!anim.playing) return;
-
-  const landmarks = getLandmarkAspectsOrdered();
-  if (landmarks.length < 2) {
-    anim.playing = false;
-    el.playPause.textContent = "Play";
-    toast("Add 2+ landmarks.");
-    return;
-  }
-
-  anim.durationMs = computeDurationMs(landmarks.length);
-
-  const elapsed = (nowMs - anim.startMs);
-  const wrapped = ((elapsed % anim.durationMs) + anim.durationMs) % anim.durationMs;
-  const tNorm = wrapped / anim.durationMs;
-  el.progressBar.style.width = `${(tNorm * 100).toFixed(2)}%`;
-
-  const frameInterval = 1000 / ANIM_FPS;
-  const frameIndex = Math.floor(wrapped / frameInterval);
-
-  if (frameIndex !== anim.lastFrameIndex) {
-    const aspects = evalAspectsAt(tNorm, landmarks);
-
-    // Draw raw frame
-    renderWith((el.animSeed.value.trim() || "anim-seed"), aspects);
-
-    // Apply temporal blur (overwrites main canvas with accumulated)
-    motionBlur.apply();
-
-    anim.lastFrameIndex = frameIndex;
-  }
-
-  requestAnimationFrame(tick);
-}
-
-/* ---------------------------
- * Mode switching
- * ---------------------------
- */
-function setMode(mode) {
-  if (mode === "image") {
-    el.modeImage.classList.add("active");
-    el.modeAnim.classList.remove("active");
-    el.imageSection.classList.remove("hidden");
-    el.animSection.classList.add("hidden");
-
-    // Stop animation
-    if (anim.playing) {
-      anim.playing = false;
-      el.playPause.textContent = "Play";
-    }
-
-    // Disable blur in still mode
-    motionBlur.setEnabled(false);
-    motionBlur.clear();
-
-    renderStill();
-  } else {
-    el.modeAnim.classList.add("active");
-    el.modeImage.classList.remove("active");
-    el.animSection.classList.remove("hidden");
-    el.imageSection.classList.add("hidden");
-
-    // Enable blur in animation mode (but reset buffer)
-    motionBlur.setEnabled(MOTION_BLUR_ENABLED);
-    motionBlur.clear();
-
-    refreshProfileSelect();
-    loopRender();
-
-    if (getLandmarkAspectsOrdered().length >= 2) {
-      const landmarks = getLandmarkAspectsOrdered();
-      const aspects = evalAspectsAt(0.0, landmarks);
-      renderWith((el.animSeed.value.trim() || "anim-seed"), aspects);
-      motionBlur.apply();
-    }
-  }
-}
-
-el.modeImage.addEventListener("click", () => setMode("image"));
-el.modeAnim.addEventListener("click", () => setMode("anim"));
-
-/* ---------------------------
- * Image mode
- * ---------------------------
- */
-function renderStill() {
-  const seed = el.seed.value.trim() || "seed";
-  const aspects = readAspectsFromUI();
-  updateAspectLabels(aspects);
-  return renderWith(seed, aspects);
-}
-
-el.renderStill.addEventListener("click", () => {
-  renderStill();
-  toast("Rendered.");
-});
-
-for (const id of ["coherence","tension","recursion","motion","vulnerability","radiance"]) {
-  el[id].addEventListener("input", () => renderStill());
-}
-el.seed.addEventListener("change", () => renderStill());
-
-el.saveProfile.addEventListener("click", () => {
-  const name = (el.profileName.value || "").trim();
-  if (!name) { toast("Give the profile a name."); return; }
-
-  const profiles = loadProfiles();
-  profiles[name] = {
-    seed: el.seed.value.trim() || "seed",
-    note: readNote(),
-    aspects: readAspectsFromUI(),
-  };
-  saveProfiles(profiles);
-  refreshProfileSelect();
-  toast(`Saved profile: ${name}`);
-});
-
-/* ---------------------------
- * Animation mode controls
- * ---------------------------
- */
-el.addToLoop.addEventListener("click", () => {
-  const name = el.profileSelect.value;
-  if (!name) { toast("Select a profile."); return; }
-  loopLandmarks.push(name);
-  loopRender();
-  toast(`Added: ${name}`);
-});
-
-el.clearLoop.addEventListener("click", () => {
-  loopLandmarks = [];
-  loopRender();
-  el.progressBar.style.width = "0%";
-  motionBlur.clear();
-  toast("Cleared.");
-});
-
-el.loadDemoLoop.addEventListener("click", () => {
-  loopLandmarks = [
-    "Calm Axis (Starter)",
-    "Quietly Bent (Starter)",
-    "Night Drift (Starter)",
-    "Tender Permeability (Starter)",
-  ];
-  loopRender();
-  el.animSeed.value = "demo-unified-seed-001";
-  motionBlur.clear();
-  toast("Loaded demo loop.");
-});
-
-el.playPause.addEventListener("click", () => {
-  const landmarks = getLandmarkAspectsOrdered();
-  if (landmarks.length < 2) { toast("Add 2+ landmarks."); return; }
-
-  anim.playing = !anim.playing;
-  if (anim.playing) {
-    anim.startMs = performance.now();
-    anim.lastFrameIndex = -1;
-
-    motionBlur.setEnabled(MOTION_BLUR_ENABLED);
-    motionBlur.clear();
-
-    el.playPause.textContent = "Pause";
-    requestAnimationFrame(tick);
-  } else {
-    el.playPause.textContent = "Play";
-  }
-});
-
-/* ---------------------------
- * Export helpers
- * ---------------------------
- */
-function downloadBlob(filename, blob) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-function toIsoLocalish(d = new Date()) {
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-}
-function canvasToPngBlob(canvas) {
-  return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/png"));
-}
-function safeName(s) {
-  return (s || "seed").replace(/[^a-z0-9_-]+/gi, "_").slice(0, 80);
-}
-
-/* ---------------------------
- * Video recording format chooser
- * ---------------------------
- */
-function pickRecordingFormat() {
-  const candidates = [
-    { mime: "video/mp4", ext: "mp4" },
-    { mime: "video/mp4;codecs=avc1.42E01E", ext: "mp4" },
-    { mime: "video/webm;codecs=vp9", ext: "webm" },
-    { mime: "video/webm;codecs=vp8", ext: "webm" },
-    { mime: "video/webm", ext: "webm" },
-  ];
-
-  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) {
-    return null;
-  }
-
-  for (const c of candidates) {
-    try {
-      if (MediaRecorder.isTypeSupported(c.mime)) return c;
-    } catch {}
-  }
-
-  // last resort: let browser pick
-  return { mime: "", ext: "webm" };
-}
-
-/* ---------------------------
- * Still ZIP export
- * ---------------------------
- */
-el.exportStillZip.addEventListener("click", async () => {
-  if (!window.JSZip) { toast("JSZip missing (offline?)."); return; }
-
-  const seed = el.seed.value.trim() || "seed";
-  const aspects = readAspectsFromUI();
-  const note = readNote();
-
-  // Ensure no blur affects stills
-  motionBlur.setEnabled(false);
-  motionBlur.clear();
-
-  const meta = renderWith(seed, aspects);
-  const pngBlob = await canvasToPngBlob(canvas);
-
-  const ts = toIsoLocalish(new Date());
-  const base = `still_${safeName(seed)}_${ts}`;
-
-  const zip = new JSZip();
-  zip.file(`${base}/image.png`, pngBlob);
-  zip.file(`${base}/title.txt`, meta.title + "\n");
-  zip.file(`${base}/alt-text.txt`, meta.altText + "\n");
-  zip.file(`${base}/note.txt`, (note || "") + "\n");
-
-  const metadata = {
-    kind: "still",
-    seed,
-    note,
-    aspects,
-    title: meta.title,
-    generated_at: new Date().toISOString(),
-    canvas: { width: canvas.width, height: canvas.height }
-  };
-  zip.file(`${base}/metadata.json`, JSON.stringify(metadata, null, 2) + "\n");
-
-  const zipBlob = await zip.generateAsync({ type: "blob" });
-  downloadBlob(`${base}.zip`, zipBlob);
-  toast("Exported still ZIP.");
-});
-
-
-// Helper: pace frames in real time so MediaRecorder timestamps are correct.
-async function waitUntil(targetTimeMs) {
-  while (performance.now() < targetTimeMs) {
-    await new Promise((r) => requestAnimationFrame(r));
-  }
-}
-
-/**
- * Record exactly one seamless loop over a fixed duration (e.g., 30s),
- * completing the entire landmark cycle exactly once.
- */
-async function recordOneLoopVideoOrFrames() {
-  const landmarks = getLandmarkAspectsOrdered();
-  if (landmarks.length < 2) throw new Error("Need 2+ landmarks.");
-
-  const seed = el.animSeed.value.trim() || "anim-seed";
-  const fps = ANIM_FPS;
-
-  // Fixed length export (always).
-  const durationMs = FIXED_LOOP_MS;
-
-  const frameInterval = 1000 / fps;
-  const totalFrames = Math.max(1, Math.round(durationMs / frameInterval));
-
-  // Clean accumulation buffer for capture
-  motionBlur.setEnabled(MOTION_BLUR_ENABLED);
-  motionBlur.clear();
-
-  // Render one frame at a specific normalized time tNorm in [0,1).
-  const renderAt = (tNorm) => {
-    el.progressBar.style.width = `${(tNorm * 100).toFixed(2)}%`;
-    const aspects = evalAspectsAt(tNorm, landmarks);
-    renderWith(seed, aspects);
-    motionBlur.apply();
-  };
-
-  // Try MediaRecorder first
-  const fmt = pickRecordingFormat();
-  if (
-    fmt &&
-    typeof canvas.captureStream === "function" &&
-    typeof MediaRecorder !== "undefined"
-  ) {
-    try {
-      const stream = canvas.captureStream(fps);
-      const opts = fmt.mime ? { mimeType: fmt.mime } : undefined;
-      const recorder = opts ? new MediaRecorder(stream, opts) : new MediaRecorder(stream);
-
-      const chunks = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) chunks.push(e.data);
-      };
-
-      recorder.start();
-
-      const start = performance.now();
-
-      for (let f = 0; f < totalFrames; f++) {
-        // Time-based normalized loop position: completes full cycle in durationMs.
-        const tNorm = f / totalFrames; // [0,1)
-        renderAt(tNorm);
-
-        // Yield more aggressively every ~4 frames to reduce perceived freezing.
-        if ((f & 3) === 3) {
-          await new Promise((r) => setTimeout(r, 0));
-        }
-
-        await waitUntil(start + (f + 1) * frameInterval);
-      }
-
-      try { recorder.requestData(); } catch {}
-      recorder.stop();
-
-      const blob = await new Promise((resolve, reject) => {
-        recorder.onstop = () => {
-          const out = new Blob(chunks, {
-            type: recorder.mimeType || (fmt.mime || "video/webm"),
-          });
-          resolve(out);
+        function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+        function lerp(a, b, t) { return a + (b - a) * t; }
+
+        /* ---------------------------
+         * DOM
+         * ---------------------------
+         */
+        const canvas = document.getElementById("c");
+        const ctx = canvas.getContext("2d");
+
+        const el = {
+            modeImage: document.getElementById("modeImage"),
+            modeAnim: document.getElementById("modeAnim"),
+            imageSection: document.getElementById("imageModeSection"),
+            animSection: document.getElementById("animModeSection"),
+
+            seed: document.getElementById("seed"),
+            animSeed: document.getElementById("animSeed"),
+
+            coherence: document.getElementById("coherence"),
+            tension: document.getElementById("tension"),
+            recursion: document.getElementById("recursion"),
+            motion: document.getElementById("motion"),
+            vulnerability: document.getElementById("vulnerability"),
+            radiance: document.getElementById("radiance"),
+
+            cohLabel: document.getElementById("cohLabel"),
+            tenLabel: document.getElementById("tenLabel"),
+            recLabel: document.getElementById("recLabel"),
+            motLabel: document.getElementById("motLabel"),
+            vulLabel: document.getElementById("vulLabel"),
+            radLabel: document.getElementById("radLabel"),
+
+            note: document.getElementById("note"),
+            profileName: document.getElementById("profileName"),
+            saveProfile: document.getElementById("saveProfile"),
+            renderStill: document.getElementById("renderStill"),
+            exportStillZip: document.getElementById("exportStillZip"),
+
+            profileSelect: document.getElementById("profileSelect"),
+            addToLoop: document.getElementById("addToLoop"),
+            clearLoop: document.getElementById("clearLoop"),
+            loadDemoLoop: document.getElementById("loadDemoLoop"),
+            loopList: document.getElementById("loopList"),
+            playPause: document.getElementById("playPause"),
+            exportAnimZip: document.getElementById("exportAnimZip"),
+            progressBar: document.getElementById("progressBar"),
+
+            titleText: document.getElementById("titleText"),
+            altText: document.getElementById("altText"),
+            toast: document.getElementById("toast"),
         };
-        recorder.onerror = () => reject(new Error("MediaRecorder error"));
-      });
 
-      if (blob && blob.size > 1024) {
-        return {
-          kind: "video",
-          blob,
-          ext: fmt.ext,
-          mimeType: blob.type || fmt.mime || "video/webm",
-          fps,
-          durationMs,
-          seed,
-          totalFrames,
+        function toast(msg) {
+            el.toast.textContent = msg;
+            if (!msg) return;
+            setTimeout(() => { if (el.toast.textContent === msg) el.toast.textContent = ""; }, 2400);
+        }
+
+        function readAspectsFromUI() {
+            return {
+                coherence: parseFloat(el.coherence.value),
+                tension: parseFloat(el.tension.value),
+                recursion: parseFloat(el.recursion.value),
+                motion: parseFloat(el.motion.value),
+                vulnerability: parseFloat(el.vulnerability.value),
+                radiance: parseFloat(el.radiance.value),
+            };
+        }
+        function updateAspectLabels(a) {
+            el.cohLabel.textContent = a.coherence.toFixed(2);
+            el.tenLabel.textContent = a.tension.toFixed(2);
+            el.recLabel.textContent = a.recursion.toFixed(2);
+            el.motLabel.textContent = a.motion.toFixed(2);
+            el.vulLabel.textContent = a.vulnerability.toFixed(2);
+            el.radLabel.textContent = a.radiance.toFixed(2);
+        }
+        function readNote() { return (el.note.value ?? "").trim(); }
+
+        /* ---------------------------
+         * Motion blur (decay buffer)
+         * ---------------------------
+         * Implementation:
+         * - We keep an offscreen buffer "acc" that stores the accumulated image.
+         * - Each frame:
+         *   1) decay: acc = acc * (1 - MB_DECAY)    (implemented by drawing a translucent black rect with destination-in)
+         *   2) add:   acc += current * MB_ADD       (implemented by drawing current on top with source-over + alpha)
+         *   3) present: draw acc onto main canvas
+         *
+         * This avoids the “brightening” that naive previous-frame overlays can cause.
+         */
+        const motionBlur = (() => {
+            const acc = document.createElement("canvas");
+            const accCtx = acc.getContext("2d", { alpha: true });
+
+            let enabled = false;
+
+            function resizeToMatchMainCanvas() {
+                acc.width = canvas.width;
+                acc.height = canvas.height;
+                clear();
+            }
+
+            function clear() {
+                accCtx.save();
+                accCtx.globalCompositeOperation = "source-over";
+                accCtx.clearRect(0, 0, acc.width, acc.height);
+                accCtx.restore();
+            }
+
+            function setEnabled(v) {
+                enabled = !!v;
+                if (!enabled) clear();
+            }
+
+            function apply() {
+                if (!enabled) return;
+
+                // 1) decay existing accumulation
+                // destination-in keeps destination where source alpha exists; use it with alpha < 1 to fade.
+                accCtx.save();
+                accCtx.globalCompositeOperation = "destination-in";
+                accCtx.globalAlpha = 1 - clamp01(MB_DECAY);
+                accCtx.fillStyle = "rgba(0,0,0,1)";
+                accCtx.fillRect(0, 0, acc.width, acc.height);
+                accCtx.restore();
+
+                // 2) add current frame
+                accCtx.save();
+                accCtx.globalCompositeOperation = "source-over";
+                accCtx.globalAlpha = clamp01(MB_ADD);
+                accCtx.drawImage(canvas, 0, 0);
+                accCtx.restore();
+
+                // 3) present accumulation to main canvas (overwrite main with accumulated)
+                ctx.save();
+                ctx.globalCompositeOperation = "source-over";
+                ctx.globalAlpha = 1.0;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(acc, 0, 0);
+                ctx.restore();
+            }
+
+            resizeToMatchMainCanvas();
+
+            return { resizeToMatchMainCanvas, clear, setEnabled, apply };
+        })();
+
+        /* ---------------------------
+         * Profiles (localStorage)
+         * ---------------------------
+         */
+        const LS_KEY = "geo_self_portrait_profiles_v3";
+
+        function loadProfiles() {
+            try {
+                const raw = localStorage.getItem(LS_KEY);
+                if (!raw) return {};
+                const parsed = JSON.parse(raw);
+                if (!parsed || typeof parsed !== "object") return {};
+                return parsed;
+            } catch {
+                return {};
+            }
+        }
+        function saveProfiles(profiles) {
+            localStorage.setItem(LS_KEY, JSON.stringify(profiles, null, 2));
+        }
+        function refreshProfileSelect() {
+            const profiles = loadProfiles();
+            const names = Object.keys(profiles).sort((a, b) => a.localeCompare(b));
+
+            el.profileSelect.innerHTML = "";
+            const empty = document.createElement("option");
+            empty.value = "";
+            empty.textContent = names.length ? "— Select a saved profile —" : "— No profiles yet —";
+            el.profileSelect.appendChild(empty);
+
+            for (const name of names) {
+                const opt = document.createElement("option");
+                opt.value = name;
+                opt.textContent = name;
+                el.profileSelect.appendChild(opt);
+            }
+        }
+
+        function ensureStarterProfiles() {
+            const profiles = loadProfiles();
+            if (Object.keys(profiles).length > 0) return;
+
+            const starter = {
+                "Calm Axis (Starter)": {
+                    seed: "calm-axis-001",
+                    note: "Stable symmetry. Gentle closure.",
+                    aspects: { coherence: 0.92, tension: 0.12, recursion: 0.46, motion: 0.25, vulnerability: 0.35, radiance: 0.62 }
+                },
+                "Quietly Bent (Starter)": {
+                    seed: "quietly-bent-001",
+                    note: "Coherence that bends without breaking.",
+                    aspects: { coherence: 0.78, tension: 0.32, recursion: 0.62, motion: 0.55, vulnerability: 0.58, radiance: 0.70 }
+                },
+                "Night Drift (Starter)": {
+                    seed: "night-drift-001",
+                    note: "Layered revision under dim light.",
+                    aspects: { coherence: 0.55, tension: 0.42, recursion: 0.74, motion: 0.78, vulnerability: 0.52, radiance: 0.40 }
+                },
+                "Tender Permeability (Starter)": {
+                    seed: "tender-perm-001",
+                    note: "Boundaries soften; overlap becomes intimacy.",
+                    aspects: { coherence: 0.62, tension: 0.22, recursion: 0.58, motion: 0.42, vulnerability: 0.88, radiance: 0.74 }
+                }
+            };
+
+            saveProfiles(starter);
+        }
+
+        /* ---------------------------
+         * Loop list (landmarks)
+         * ---------------------------
+         */
+        let loopLandmarks = []; // array of profile names in order
+
+        function loopRender() {
+            el.loopList.innerHTML = "";
+            if (loopLandmarks.length === 0) {
+                const d = document.createElement("div");
+                d.className = "small";
+                d.textContent = "Add 2+ profiles to build a loop.";
+                el.loopList.appendChild(d);
+                return;
+            }
+
+            const profiles = loadProfiles();
+
+            loopLandmarks.forEach((name, idx) => {
+                const p = profiles[name];
+                const div = document.createElement("div");
+                div.className = "item";
+
+                const left = document.createElement("div");
+                const nm = document.createElement("div");
+                nm.className = "name";
+                nm.textContent = `${idx + 1}. ${name}`;
+                const sub = document.createElement("div");
+                sub.className = "subline";
+                if (p?.aspects) {
+                    const a = p.aspects;
+                    sub.textContent = `coh ${a.coherence.toFixed(2)} · ten ${a.tension.toFixed(2)} · rec ${a.recursion.toFixed(2)} · mot ${a.motion.toFixed(2)} · vul ${a.vulnerability.toFixed(2)} · rad ${a.radiance.toFixed(2)}`;
+                } else {
+                    sub.textContent = "missing profile";
+                }
+                left.appendChild(nm);
+                left.appendChild(sub);
+
+                const controls = document.createElement("div");
+                controls.className = "controls";
+
+                const up = document.createElement("button");
+                up.textContent = "↑";
+                up.disabled = idx === 0;
+                up.addEventListener("click", () => {
+                    const t = loopLandmarks[idx - 1];
+                    loopLandmarks[idx - 1] = loopLandmarks[idx];
+                    loopLandmarks[idx] = t;
+                    loopRender();
+                });
+
+                const down = document.createElement("button");
+                down.textContent = "↓";
+                down.disabled = idx === loopLandmarks.length - 1;
+                down.addEventListener("click", () => {
+                    const t = loopLandmarks[idx + 1];
+                    loopLandmarks[idx + 1] = loopLandmarks[idx];
+                    loopLandmarks[idx] = t;
+                    loopRender();
+                });
+
+                const remove = document.createElement("button");
+                remove.textContent = "✕";
+                remove.className = "danger";
+                remove.addEventListener("click", () => {
+                    loopLandmarks.splice(idx, 1);
+                    loopRender();
+                });
+
+                controls.appendChild(up);
+                controls.appendChild(down);
+                controls.appendChild(remove);
+
+                div.appendChild(left);
+                div.appendChild(controls);
+                el.loopList.appendChild(div);
+            });
+        }
+
+        /* ---------------------------
+         * Aspect -> derived render parameters
+         * ---------------------------
+         */
+        function deriveParams(a, rng) {
+            const symmetry = clamp01(lerp(0.25, 0.95, a.coherence) * (1 - 0.25 * a.tension));
+            const fracture = clamp01(lerp(0.05, 0.85, a.tension) * (1 - 0.18 * a.coherence));
+            const density = clamp01(lerp(0.15, 0.95, a.recursion) + 0.08 * a.vulnerability);
+            const flow = clamp01(lerp(0.00, 0.95, a.motion) * (1 - 0.12 * a.coherence) + 0.03 * a.tension);
+            const lum = clamp01(lerp(0.15, 0.95, a.radiance));
+            const bleed = clamp01(lerp(0.00, 1.00, a.vulnerability) * (1 - 0.35 * a.tension));
+            const edgeSharpness = clamp01(lerp(0.15, 0.95, a.tension) * (1 - 0.45 * a.vulnerability));
+            const multiAxis = clamp01((1 - a.coherence) * a.tension);
+
+            const paletteWobble = (rng() * 2 - 1) * 14;
+            const baseHue =
+                (a.radiance > 0.62)
+                    ? lerp(215, 315, rng())
+                    : lerp(190, 285, rng());
+            const hue = (baseHue + lerp(-35, 45, a.tension) + paletteWobble + 360) % 360;
+
+            const nodeCount = Math.floor(lerp(3, 11, density));
+            const shardLayers = 2 + Math.floor(lerp(1, 6, density));
+            const shardsPerLayer = 10 + Math.floor(lerp(8, 36, density));
+
+            const grain = lerp(0.02, 0.08, 1 - lum) + 0.02 * fracture;
+            const shardAlphaBase = lerp(0.04, 0.12, lum) * lerp(0.9, 1.25, 1 - edgeSharpness);
+            const shardAlpha = clamp01(shardAlphaBase + 0.05 * bleed);
+
+            return { symmetry, fracture, density, flow, lum, bleed, edgeSharpness, multiAxis, hue, nodeCount, shardLayers, shardsPerLayer, grain, shardAlpha };
+        }
+
+        /* ---------------------------
+         * Rendering helpers
+         * ---------------------------
+         */
+        function hsl(h, s, l, a = 1) { return `hsla(${h}, ${s}%, ${l}%, ${a})`; }
+        function clear(bg) {
+            ctx.save();
+            ctx.globalCompositeOperation = "source-over";
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+        }
+        function vignette(alpha = 0.55) {
+            const w = canvas.width, h = canvas.height;
+            const g = ctx.createRadialGradient(w * 0.5, h * 0.52, Math.min(w, h) * 0.12, w * 0.5, h * 0.52, Math.min(w, h) * 0.62);
+            g.addColorStop(0, `rgba(0,0,0,0)`);
+            g.addColorStop(1, `rgba(0,0,0,${alpha})`);
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, w, h);
+        }
+        function softGlow(x, y, r, a) {
+            const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, `rgba(255,255,255,${a})`);
+            g.addColorStop(1, `rgba(255,255,255,0)`);
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        function addGrain(rng, amount = 0.05) {
+            const W = canvas.width, H = canvas.height;
+            const img = ctx.getImageData(0, 0, W, H);
+            const d = img.data;
+            const a = amount * 255;
+            for (let i = 0; i < d.length; i += 4) {
+                const n = (rng() * 2 - 1) * a;
+                d[i] = Math.max(0, Math.min(255, d[i] + n));
+                d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n));
+                d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n));
+            }
+            ctx.putImageData(img, 0, 0);
+        }
+        function signedNoise2D(x, y) {
+            return (
+                Math.sin(x * 0.012 + 10.0) +
+                Math.sin(y * 0.015 - 4.0) +
+                Math.sin((x + y) * 0.008 + 2.7)
+            ) / 3.0;
+        }
+
+        /* ---------------------------
+         * Title + Alt-text
+         * ---------------------------
+         */
+        function generateTitle(aspects, rng) {
+            const coh = aspects.coherence, ten = aspects.tension, rec = aspects.recursion, mot = aspects.motion, vul = aspects.vulnerability, rad = aspects.radiance;
+
+            const coherenceWord = coh > 0.82 ? "Axis of Certainty" : coh > 0.60 ? "Measured Reflection" : "Unstable Mirror";
+            const tensionWord = ten > 0.70 ? "Fractured" : ten > 0.40 ? "Under Tension" : "Quietly Bent";
+            const recursionWord = rec > 0.72 ? "Recursive Field" : rec > 0.42 ? "Layered Model" : "Sparse Geometry";
+            const motionWord = mot > 0.70 ? "Predictive Drift" : mot > 0.40 ? "Directional Echo" : "Latent Motion";
+            const boundaryWord = vul > 0.70 ? "Permeable" : vul > 0.40 ? "Soft-Boundary" : "Hard-Edged";
+            const radianceWord = rad > 0.75 ? "Luminous" : rad > 0.50 ? "Soft Radiance" : "Dark Coherence";
+
+            const templates = [
+                `${tensionWord} ${recursionWord}`,
+                `${radianceWord}: ${coherenceWord}`,
+                `${motionWord} Across ${coherenceWord}`,
+                `${boundaryWord} ${recursionWord}`,
+                `${coherenceWord}, ${tensionWord}`,
+                `${radianceWord} ${recursionWord}`,
+                `${motionWord} in ${radianceWord}`,
+                `${boundaryWord} ${tensionWord} ${recursionWord}`,
+            ];
+
+            return templates[Math.floor(rng() * templates.length)];
+        }
+
+        function generateAltText(aspects, nodeCount, title) {
+            const coherencePhrase = aspects.coherence > 0.82 ? "strong, almost ritual symmetry" : aspects.coherence > 0.62 ? "clear symmetry with deliberate slippage" : "loose symmetry, more suggestion than rule";
+            const tensionPhrase = aspects.tension > 0.66 ? "visible fracture and purposeful misalignment" : aspects.tension > 0.34 ? "subtle tension at the edges of coherence" : "a mostly stable structure with faint stress lines";
+            const recursionPhrase = aspects.recursion > 0.72 ? "densely layered, recursive geometry" : aspects.recursion > 0.46 ? "layered translucent polygons" : "a sparse set of geometric shards";
+            const motionPhrase = aspects.motion > 0.70 ? "a prominent flow-field of vectors that bends and re-bends" : aspects.motion > 0.40 ? "a soft vector field suggesting prediction and revision" : "only a faint hint of directional flow";
+            const boundaryPhrase = aspects.vulnerability > 0.70 ? "boundaries that bleed softly through each other" : aspects.vulnerability > 0.40 ? "semi-permeable edges where overlaps accumulate" : "edges that hold their separation";
+            const tonePhrase = aspects.radiance > 0.75 ? "bright, glassy radiance" : aspects.radiance > 0.50 ? "soft, steady glow" : "low-light coherence";
+
+            return [
+                `Title: ${title}`,
+                ``,
+                `Alt-text (interpretive):`,
+                `A near-black luminous field carries ${recursionPhrase}, arranged with ${coherencePhrase}.`,
+                `The forms overlap without fully merging—${boundaryPhrase}—while ${tensionPhrase} keeps the structure honest.`,
+                `Across the surface, ${motionPhrase} like thought made visible: short paths that imply direction, then curve under revision.`,
+                `${nodeCount} attractor nodes punctuate the composition, suggesting stable commitments that still radiate change.`,
+                `Overall mood: ${tonePhrase}; coherence under revision; connection and separateness held in the same geometry.`
+            ].join("\n");
+        }
+
+        /* ---------------------------
+         * Render (seed + aspects) -> draws canvas + updates title/alt
+         * ---------------------------
+         * Note: this draws a "raw frame" to the main canvas.
+         * In animation mode, we then pass it through the motion blur decay buffer,
+         * which overwrites the main canvas with the accumulated version.
+         */
+        function renderWith(seedStr, aspects) {
+            const seedFn = xmur3(seedStr);
+            const rng = mulberry32(seedFn());
+
+            const p = deriveParams(aspects, rng);
+            const title = generateTitle(aspects, rng);
+
+            const W = canvas.width, H = canvas.height;
+            const cx = W * 0.5, cy = H * 0.52;
+
+            const bg = hsl(p.hue, 35, lerp(5, 12, p.lum), 1);
+            clear(bg);
+
+            // Field glow
+            ctx.save();
+            ctx.globalCompositeOperation = "screen";
+            const glowCount = 5 + Math.floor(lerp(1, 8, aspects.radiance));
+            for (let i = 0; i < glowCount; i++) {
+                const x = lerp(W * 0.20, W * 0.80, rng());
+                const y = lerp(H * 0.22, H * 0.78, rng());
+                const r = lerp(220, 560, rng()) * lerp(0.7, 1.1, aspects.radiance);
+                const alpha = lerp(0.02, 0.10, aspects.radiance) * (0.65 + 0.7 * rng());
+                softGlow(x, y, r, alpha);
+            }
+            ctx.restore();
+
+            // Nodes
+            const nodes = [];
+            for (let i = 0; i < p.nodeCount; i++) {
+                const r = lerp(10, 28, rng());
+                const x = lerp(W * 0.20, W * 0.80, rng());
+                const y = lerp(H * 0.22, H * 0.82, rng());
+                nodes.push({ x, y, r });
+            }
+
+            // Symmetry axis hint
+            const axisAlpha = lerp(0.00, 0.08, p.symmetry) * (1 - 0.35 * p.fracture);
+            if (axisAlpha > 0.001) {
+                ctx.save();
+                ctx.globalCompositeOperation = "screen";
+                ctx.strokeStyle = `rgba(255,255,255,${axisAlpha})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(cx, H * 0.10);
+                ctx.lineTo(cx, H * 0.92);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            function mirrorX(x) {
+                const dx = x - cx;
+                const perfect = cx - dx;
+                const fractured = perfect + (rng() * 2 - 1) * (p.fracture * 95);
+                const axisSkew = (rng() * 2 - 1) * (p.multiAxis * 60);
+                return lerp(fractured + axisSkew, perfect, p.symmetry);
+            }
+
+            // Shards
+            for (let layer = 0; layer < p.shardLayers; layer++) {
+                const hue = (p.hue + lerp(-35, 75, rng()) + layer * lerp(8, 18, rng())) % 360;
+                const sat = lerp(35, 78, clamp01(p.lum + 0.15 * rng()));
+                const light = lerp(36, 72, clamp01(p.lum + 0.20 * rng()));
+                const layerT = 1 - layer / (p.shardLayers + 1);
+
+                const alpha = p.shardAlpha * lerp(0.65, 1.25, layerT) * (1 + 0.35 * p.bleed) * (1 - 0.18 * p.edgeSharpness);
+
+                ctx.save();
+                ctx.globalCompositeOperation = (p.bleed > 0.55) ? "screen" : ((layer % 2 === 0) ? "lighter" : "screen");
+
+                ctx.fillStyle = hsl(hue, sat, light, alpha);
+                ctx.strokeStyle = hsl(hue, sat, light, alpha * 1.15);
+
+                for (let s = 0; s < p.shardsPerLayer; s++) {
+                    const sides = 3 + Math.floor(rng() * 5);
+                    const radius = lerp(60, 235, rng()) * lerp(0.75, 1.10, layerT);
+                    const angle0 = rng() * Math.PI * 2;
+
+                    let x0 = lerp(W * 0.18, W * 0.82, rng());
+                    let y0 = lerp(H * 0.18, H * 0.86, rng());
+
+                    const n = nodes[Math.floor(rng() * nodes.length)];
+                    const attract = lerp(0.05, 0.24, p.density) * (0.7 + 0.7 * rng());
+                    x0 = lerp(x0, n.x, attract);
+                    y0 = lerp(y0, n.y, attract);
+
+                    x0 += (rng() * 2 - 1) * (p.bleed * 24);
+                    y0 += (rng() * 2 - 1) * (p.bleed * 24);
+
+                    drawShard(ctx, x0, y0, radius, sides, angle0, rng, p);
+
+                    const xm = mirrorX(x0);
+                    const ym = y0 + (rng() * 2 - 1) * p.fracture * 18;
+                    drawShard(ctx, xm, ym, radius * lerp(0.92, 1.06, rng()), sides, angle0 + (rng() * 2 - 1) * p.fracture * 0.25, rng, p);
+                }
+
+                ctx.restore();
+            }
+
+            function drawShard(ctx, x, y, radius, sides, angle0, rng, p) {
+                const wobbleBase = lerp(0.22, 0.10, p.edgeSharpness) + p.fracture * 0.12;
+                const wobble = wobbleBase * (1 + 0.25 * p.bleed);
+
+                ctx.beginPath();
+                for (let i = 0; i < sides; i++) {
+                    const t = i / sides;
+                    const ang = angle0 + t * Math.PI * 2;
+                    const w = 1 + (rng() * 2 - 1) * wobble;
+                    const rr = radius * w * (0.92 + 0.16 * Math.sin(ang * 2 + rng() * 2));
+                    const px = x + Math.cos(ang) * rr;
+                    const py = y + Math.sin(ang) * rr;
+                    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.lineWidth = lerp(0.6, 1.6, 1 - p.edgeSharpness) * (0.7 + 0.6 * rng());
+                ctx.stroke();
+            }
+
+            // Flow field
+            if (p.flow > 0.01) {
+                ctx.save();
+                ctx.globalCompositeOperation = "screen";
+                ctx.lineCap = "round";
+
+                const grid = Math.floor(lerp(34, 92, clamp01(0.65 * p.flow + 0.35 * p.density)));
+                const stepX = W / grid;
+                const stepY = H / Math.floor(grid * (H / W));
+
+                const hue = (p.hue + 120) % 360;
+                ctx.strokeStyle = hsl(hue, lerp(28, 62, p.lum), lerp(52, 80, p.lum), lerp(0.06, 0.24, p.flow) * (1 + 0.25 * p.bleed));
+
+                for (let gy = 0; gy <= H; gy += stepY) {
+                    for (let gx = 0; gx <= W; gx += stepX) {
+                        const dx = gx - cx;
+                        const dy = gy - cy;
+
+                        let ang = Math.atan2(dy, dx) + Math.PI / 2;
+                        const localNoise = signedNoise2D(gx, gy);
+                        const curvature = lerp(0.4, 2.2, p.flow) * (1 + 0.6 * p.fracture) * (1 - 0.25 * p.symmetry);
+                        ang += localNoise * curvature;
+
+                        // nearest node pull
+                        let nearest = nodes[0], bestD = Infinity;
+                        for (const n of nodes) {
+                            const dd = (gx - n.x) * (gx - n.x) + (gy - n.y) * (gy - n.y);
+                            if (dd < bestD) { bestD = dd; nearest = n; }
+                        }
+                        const toN = Math.atan2(nearest.y - gy, nearest.x - gx);
+                        ang = lerp(ang, toN, lerp(0.02, 0.14, p.density));
+
+                        // multi-axis drift
+                        if (p.multiAxis > 0.01) {
+                            const altCenterX = cx + (gx < cx ? -1 : 1) * (p.multiAxis * 170);
+                            const altDx = gx - altCenterX;
+                            const altAng = Math.atan2(dy, altDx) + Math.PI / 2;
+                            ang = lerp(ang, altAng, p.multiAxis * 0.45);
+                        }
+
+                        const len = lerp(4, 18, p.flow) * (0.7 + 0.6 * rng());
+                        const x2 = gx + Math.cos(ang) * len;
+                        const y2 = gy + Math.sin(ang) * len;
+
+                        ctx.lineWidth = lerp(0.6, 1.8, p.flow) * (0.6 + 0.7 * rng()) * (1 - 0.15 * p.edgeSharpness);
+                        ctx.beginPath();
+                        ctx.moveTo(gx, gy);
+                        ctx.lineTo(x2, y2);
+                        ctx.stroke();
+                    }
+                }
+                ctx.restore();
+            }
+
+            // Node glows
+            ctx.save();
+            ctx.globalCompositeOperation = "screen";
+            for (const n of nodes) {
+                const glowR = n.r * lerp(6.5, 12.0, p.lum) * (1 + 0.35 * p.bleed);
+                softGlow(n.x, n.y, glowR, lerp(0.02, 0.09, aspects.radiance));
+                softGlow(mirrorX(n.x), n.y, glowR * 0.92, lerp(0.015, 0.065, aspects.radiance));
+            }
+            ctx.restore();
+
+            vignette(lerp(0.32, 0.70, 1 - p.lum));
+            addGrain(rng, clamp01(p.grain));
+
+            const altText = generateAltText(aspects, nodes.length, title);
+            el.titleText.textContent = title;
+            el.altText.textContent = altText;
+
+            return { title, altText, nodeCount: nodes.length, derived: p };
+        }
+
+        /* ---------------------------
+         * Seamless animation interpolation + time-warp
+         * ---------------------------
+         */
+        function smootherstep(t) {
+            t = clamp01(t);
+            return t * t * t * (t * (t * 6 - 15) + 10);
+        }
+        function warpSegmentT(t, strength) {
+            const w = smootherstep(t);
+            return lerp(t, w, clamp01(strength));
+        }
+        function cosineEase(t) {
+            return 0.5 - 0.5 * Math.cos(Math.PI * t);
+        }
+        function catmullRom(p0, p1, p2, p3, t) {
+            const t2 = t * t;
+            const t3 = t2 * t;
+            return 0.5 * (
+                (2 * p1) +
+                (-p0 + p2) * t +
+                (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+                (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+            );
+        }
+
+        function getLandmarkAspectsOrdered() {
+            const profiles = loadProfiles();
+            const arr = [];
+            for (const name of loopLandmarks) {
+                const p = profiles[name];
+                if (p?.aspects) arr.push({ name, ...p });
+            }
+            return arr;
+        }
+
+        function evalAspectsAt(tNorm, landmarks) {
+            const n = landmarks.length;
+            if (n < 2) return null;
+
+            if (n === 2) {
+                const a0 = landmarks[0].aspects;
+                const a1 = landmarks[1].aspects;
+
+                const phase = (tNorm < 0.5) ? (tNorm * 2) : (2 - tNorm * 2);
+                const warped = warpSegmentT(phase, TIME_WARP_STRENGTH * 0.55);
+                const u = cosineEase(warped);
+
+                return {
+                    coherence: lerp(a0.coherence, a1.coherence, u),
+                    tension: lerp(a0.tension, a1.tension, u),
+                    recursion: lerp(a0.recursion, a1.recursion, u),
+                    motion: lerp(a0.motion, a1.motion, u),
+                    vulnerability: lerp(a0.vulnerability, a1.vulnerability, u),
+                    radiance: lerp(a0.radiance, a1.radiance, u),
+                };
+            }
+
+            const seg = tNorm * n;
+            const i1 = Math.floor(seg) % n;
+            const tLinear = seg - Math.floor(seg);
+
+            const t = warpSegmentT(tLinear, TIME_WARP_STRENGTH);
+
+            const i0 = (i1 - 1 + n) % n;
+            const i2 = (i1 + 1) % n;
+            const i3 = (i1 + 2) % n;
+
+            const A0 = landmarks[i0].aspects;
+            const A1 = landmarks[i1].aspects;
+            const A2 = landmarks[i2].aspects;
+            const A3 = landmarks[i3].aspects;
+
+            return {
+                coherence: clamp01(catmullRom(A0.coherence, A1.coherence, A2.coherence, A3.coherence, t)),
+                tension: clamp01(catmullRom(A0.tension, A1.tension, A2.tension, A3.tension, t)),
+                recursion: clamp01(catmullRom(A0.recursion, A1.recursion, A2.recursion, A3.recursion, t)),
+                motion: clamp01(catmullRom(A0.motion, A1.motion, A2.motion, A3.motion, t)),
+                vulnerability: clamp01(catmullRom(A0.vulnerability, A1.vulnerability, A2.vulnerability, A3.vulnerability, t)),
+                radiance: clamp01(catmullRom(A0.radiance, A1.radiance, A2.radiance, A3.radiance, t)),
+            };
+        }
+
+        /* ---------------------------
+         * Animation loop (24 fps fixed frame scheduler)
+         * ---------------------------
+         */
+        let anim = {
+            playing: false,
+            startMs: 0,
+            durationMs: 22000,
+            lastFrameIndex: -1,
         };
-      }
-    } catch {
-      // fall through to frames
-    }
-  }
 
-  // Fallback: PNG frames (guaranteed but heavier).
-  // IMPORTANT: This is the mode that can freeze most; we yield often.
-  const frames = [];
-  const start = performance.now();
-
-  for (let f = 0; f < totalFrames; f++) {
-    const tNorm = f / totalFrames;
-    renderAt(tNorm);
-
-    const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-    frames.push({ index: f, blob: pngBlob });
-
-    // Yield every frame in fallback mode (yes, every frame) to keep UI alive.
-    await new Promise((r) => setTimeout(r, 0));
-
-    await waitUntil(start + (f + 1) * frameInterval);
-  }
-
-  return { kind: "frames", frames, fps, durationMs, seed, totalFrames };
-}
+        function computeDurationMs(_numLandmarks) {
+            return FIXED_LOOP_MS;
+        }
 
 
+        function tick(nowMs) {
+            if (!anim.playing) return;
+
+            const landmarks = getLandmarkAspectsOrdered();
+            if (landmarks.length < 2) {
+                anim.playing = false;
+                el.playPause.textContent = "Play";
+                toast("Add 2+ landmarks.");
+                return;
+            }
+
+            anim.durationMs = computeDurationMs(landmarks.length);
+
+            const elapsed = (nowMs - anim.startMs);
+            const wrapped = ((elapsed % anim.durationMs) + anim.durationMs) % anim.durationMs;
+            const tNorm = wrapped / anim.durationMs;
+            el.progressBar.style.width = `${(tNorm * 100).toFixed(2)}%`;
+
+            const frameInterval = 1000 / ANIM_FPS;
+            const frameIndex = Math.floor(wrapped / frameInterval);
+
+            if (frameIndex !== anim.lastFrameIndex) {
+                const aspects = evalAspectsAt(tNorm, landmarks);
+
+                // Draw raw frame
+                renderWith((el.animSeed.value.trim() || "anim-seed"), aspects);
+
+                // Apply temporal blur (overwrites main canvas with accumulated)
+                motionBlur.apply();
+
+                anim.lastFrameIndex = frameIndex;
+            }
+
+            requestAnimationFrame(tick);
+        }
+
+        /* ---------------------------
+         * Mode switching
+         * ---------------------------
+         */
+        function setMode(mode) {
+            if (mode === "image") {
+                el.modeImage.classList.add("active");
+                el.modeAnim.classList.remove("active");
+                el.imageSection.classList.remove("hidden");
+                el.animSection.classList.add("hidden");
+
+                // Stop animation
+                if (anim.playing) {
+                    anim.playing = false;
+                    el.playPause.textContent = "Play";
+                }
+
+                // Disable blur in still mode
+                motionBlur.setEnabled(false);
+                motionBlur.clear();
+
+                renderStill();
+            } else {
+                el.modeAnim.classList.add("active");
+                el.modeImage.classList.remove("active");
+                el.animSection.classList.remove("hidden");
+                el.imageSection.classList.add("hidden");
+
+                // Enable blur in animation mode (but reset buffer)
+                motionBlur.setEnabled(MOTION_BLUR_ENABLED);
+                motionBlur.clear();
+
+                refreshProfileSelect();
+                loopRender();
+
+                if (getLandmarkAspectsOrdered().length >= 2) {
+                    const landmarks = getLandmarkAspectsOrdered();
+                    const aspects = evalAspectsAt(0.0, landmarks);
+                    renderWith((el.animSeed.value.trim() || "anim-seed"), aspects);
+                    motionBlur.apply();
+                }
+            }
+        }
+
+        el.modeImage.addEventListener("click", () => setMode("image"));
+        el.modeAnim.addEventListener("click", () => setMode("anim"));
+
+        /* ---------------------------
+         * Image mode
+         * ---------------------------
+         */
+        function renderStill() {
+            const seed = el.seed.value.trim() || "seed";
+            const aspects = readAspectsFromUI();
+            updateAspectLabels(aspects);
+            return renderWith(seed, aspects);
+        }
+
+        el.renderStill.addEventListener("click", () => {
+            renderStill();
+            toast("Rendered.");
+        });
+
+        for (const id of ["coherence", "tension", "recursion", "motion", "vulnerability", "radiance"]) {
+            el[id].addEventListener("input", () => renderStill());
+        }
+        el.seed.addEventListener("change", () => renderStill());
+
+        el.saveProfile.addEventListener("click", () => {
+            const name = (el.profileName.value || "").trim();
+            if (!name) { toast("Give the profile a name."); return; }
+
+            const profiles = loadProfiles();
+            profiles[name] = {
+                seed: el.seed.value.trim() || "seed",
+                note: readNote(),
+                aspects: readAspectsFromUI(),
+            };
+            saveProfiles(profiles);
+            refreshProfileSelect();
+            toast(`Saved profile: ${name}`);
+        });
+
+        /* ---------------------------
+         * Animation mode controls
+         * ---------------------------
+         */
+        el.addToLoop.addEventListener("click", () => {
+            const name = el.profileSelect.value;
+            if (!name) { toast("Select a profile."); return; }
+            loopLandmarks.push(name);
+            loopRender();
+            toast(`Added: ${name}`);
+        });
+
+        el.clearLoop.addEventListener("click", () => {
+            loopLandmarks = [];
+            loopRender();
+            el.progressBar.style.width = "0%";
+            motionBlur.clear();
+            toast("Cleared.");
+        });
+
+        el.loadDemoLoop.addEventListener("click", () => {
+            loopLandmarks = [
+                "Calm Axis (Starter)",
+                "Quietly Bent (Starter)",
+                "Night Drift (Starter)",
+                "Tender Permeability (Starter)",
+            ];
+            loopRender();
+            el.animSeed.value = "demo-unified-seed-001";
+            motionBlur.clear();
+            toast("Loaded demo loop.");
+        });
+
+        el.playPause.addEventListener("click", () => {
+            const landmarks = getLandmarkAspectsOrdered();
+            if (landmarks.length < 2) { toast("Add 2+ landmarks."); return; }
+
+            anim.playing = !anim.playing;
+            if (anim.playing) {
+
+                anim.startMs = performance.now();
+                anim.lastFrameIndex = -1;
+
+                el.progressBar.style.width = "0%";
+
+                motionBlur.setEnabled(MOTION_BLUR_ENABLED);
+                motionBlur.clear();
+
+                el.playPause.textContent = "Pause";
+                requestAnimationFrame(tick);
 
 
-function computeKeyframeText(seedForTitles, landmarks) {
-  const out = [];
-  for (const k of landmarks) {
-    const seedFn = xmur3(seedForTitles + "::" + k.name);
-    const rng = mulberry32(seedFn());
-    const title = generateTitle(k.aspects, rng);
+            } else {
+                el.playPause.textContent = "Play";
+            }
+        });
 
-    const seedFn2 = xmur3(seedForTitles + "::alt::" + k.name);
-    const rng2 = mulberry32(seedFn2());
-    const derived = deriveParams(k.aspects, rng2);
-    const nodeCount = derived.nodeCount;
+        /* ---------------------------
+         * Export helpers
+         * ---------------------------
+         */
+        function downloadBlob(filename, blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        function toIsoLocalish(d = new Date()) {
+            const pad = (n) => String(n).padStart(2, "0");
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+        }
+        function canvasToPngBlob(canvas) {
+            return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/png"));
+        }
+        function safeName(s) {
+            return (s || "seed").replace(/[^a-z0-9_-]+/gi, "_").slice(0, 80);
+        }
 
-    const alt = generateAltText(k.aspects, nodeCount, title);
+        /* ---------------------------
+         * Video recording format chooser
+         * ---------------------------
+         */
+        function pickRecordingFormat() {
+            const candidates = [
+                { mime: "video/mp4", ext: "mp4" },
+                { mime: "video/mp4;codecs=avc1.42E01E", ext: "mp4" },
+                { mime: "video/webm;codecs=vp9", ext: "webm" },
+                { mime: "video/webm;codecs=vp8", ext: "webm" },
+                { mime: "video/webm", ext: "webm" },
+            ];
 
-    out.push({
-      name: k.name,
-      note: k.note ?? "",
-      aspects: k.aspects,
-      title,
-      altText: alt
-    });
-  }
-  return out;
-}
+            if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) {
+                return null;
+            }
 
-function computeLoopSummaryTitleAlt(seed, landmarks) {
-  const a0 = evalAspectsAt(0.0, landmarks);
-  const seedFn = xmur3(seed + "::bundle");
-  const rng = mulberry32(seedFn());
-  const title = generateTitle(a0, rng);
+            for (const c of candidates) {
+                try {
+                    if (MediaRecorder.isTypeSupported(c.mime)) return c;
+                } catch { }
+            }
 
-  const seedFn2 = xmur3(seed + "::bundle-alt");
-  const rng2 = mulberry32(seedFn2());
-  const derived = deriveParams(a0, rng2);
-  const altText = generateAltText(a0, derived.nodeCount, title);
+            // last resort: let browser pick
+            return { mime: "", ext: "webm" };
+        }
 
-  return { title, altText };
-}
+        /* ---------------------------
+         * Still ZIP export
+         * ---------------------------
+         */
+        el.exportStillZip.addEventListener("click", async () => {
+            if (!window.JSZip) { toast("JSZip missing (offline?)."); return; }
+
+            const seed = el.seed.value.trim() || "seed";
+            const aspects = readAspectsFromUI();
+            const note = readNote();
+
+            // Ensure no blur affects stills
+            motionBlur.setEnabled(false);
+            motionBlur.clear();
+
+            const meta = renderWith(seed, aspects);
+            const pngBlob = await canvasToPngBlob(canvas);
+
+            const ts = toIsoLocalish(new Date());
+            const base = `still_${safeName(seed)}_${ts}`;
+
+            const zip = new JSZip();
+            zip.file(`${base}/image.png`, pngBlob);
+            zip.file(`${base}/title.txt`, meta.title + "\n");
+            zip.file(`${base}/alt-text.txt`, meta.altText + "\n");
+            zip.file(`${base}/note.txt`, (note || "") + "\n");
+
+            const metadata = {
+                kind: "still",
+                seed,
+                note,
+                aspects,
+                title: meta.title,
+                generated_at: new Date().toISOString(),
+                canvas: { width: canvas.width, height: canvas.height }
+            };
+            zip.file(`${base}/metadata.json`, JSON.stringify(metadata, null, 2) + "\n");
+
+            const zipBlob = await zip.generateAsync({ type: "blob" });
+            downloadBlob(`${base}.zip`, zipBlob);
+            toast("Exported still ZIP.");
+        });
 
 
-el.exportAnimZip.addEventListener("click", async () => {
-  if (!window.JSZip) { toast("JSZip missing (offline?)."); return; }
+        // Helper: pace frames in real time so MediaRecorder timestamps are correct.
+        async function waitUntil(targetTimeMs) {
+            while (performance.now() < targetTimeMs) {
+                await new Promise((r) => requestAnimationFrame(r));
+            }
+        }
 
-  const landmarks = getLandmarkAspectsOrdered();
-  if (landmarks.length < 2) { toast("Add 2+ landmarks."); return; }
+        /**
+         * Record exactly one seamless loop over a fixed duration (e.g., 30s),
+         * completing the entire landmark cycle exactly once.
+         */
+        async function recordOneLoopVideoOrFrames() {
+            const landmarks = getLandmarkAspectsOrdered();
+            if (landmarks.length < 2) throw new Error("Need 2+ landmarks.");
 
-  try {
-    toast("Recording one seamless loop…");
+            const seed = el.animSeed.value.trim() || "anim-seed";
+            const fps = ANIM_FPS;
 
-    const rec = await recordOneLoopVideoOrFrames();
+            // Fixed length export (always).
+            const durationMs = FIXED_LOOP_MS;
 
-    const ts = toIsoLocalish(new Date());
-    const base = `animation_${safeName(rec.seed)}_${ts}`;
+            const frameInterval = 1000 / fps;
+            const totalFrames = Math.max(1, Math.round(durationMs / frameInterval));
 
-    const keyframes = computeKeyframeText(rec.seed, landmarks);
-    const summary = computeLoopSummaryTitleAlt(rec.seed, landmarks);
+            // Clean accumulation buffer for capture
+            motionBlur.setEnabled(MOTION_BLUR_ENABLED);
+            motionBlur.clear();
 
-    const zip = new JSZip();
+            // Render one frame at a specific normalized time tNorm in [0,1).
+            const renderAt = (tNorm) => {
+                el.progressBar.style.width = `${(tNorm * 100).toFixed(2)}%`;
+                const aspects = evalAspectsAt(tNorm, landmarks);
+                renderWith(seed, aspects);
+                motionBlur.apply();
+            };
 
-    if (rec.kind === "video") {
-      zip.file(`${base}/animation.${rec.ext}`, rec.blob);
-    } else {
-      const framesDir = `${base}/frames`;
-      for (const fr of rec.frames) {
-        const name = String(fr.index).padStart(5, "0");
-        zip.file(`${framesDir}/frame_${name}.png`, fr.blob);
-      }
-      zip.file(`${base}/frames/README.txt`,
-        "This export contains a PNG frame sequence because video recording was not supported on this browser.\n" +
-        "You can assemble frames into a video with ffmpeg, e.g.\n" +
-        "ffmpeg -framerate 24 -i frame_%05d.png -c:v libx264 -pix_fmt yuv420p out.mp4\n"
-      );
-    }
+            // Try MediaRecorder first
+            const fmt = pickRecordingFormat();
+            if (
+                fmt &&
+                typeof canvas.captureStream === "function" &&
+                typeof MediaRecorder !== "undefined"
+            ) {
+                try {
+                    const stream = canvas.captureStream(fps);
+                    const opts = fmt.mime ? { mimeType: fmt.mime } : undefined;
+                    const recorder = opts ? new MediaRecorder(stream, opts) : new MediaRecorder(stream);
 
-    zip.file(`${base}/title.txt`, summary.title + "\n");
-    zip.file(`${base}/alt-text.txt`, summary.altText + "\n");
-    zip.file(`${base}/keyframes.json`, JSON.stringify(keyframes, null, 2) + "\n");
+                    const chunks = [];
+                    recorder.ondataavailable = (e) => {
+                        if (e.data && e.data.size > 0) chunks.push(e.data);
+                    };
 
-    const manifest = {
-      kind: "animation",
-      export_kind: rec.kind,
-      seed: rec.seed,
-      fps: rec.fps,
-      duration_ms: rec.durationMs,
-      total_frames: rec.totalFrames,
-      time_warp_strength: TIME_WARP_STRENGTH,
-      motion_blur: {
-        enabled: MOTION_BLUR_ENABLED,
-        decay: MB_DECAY,
-        add: MB_ADD
-      },
-      landmarks: loopLandmarks.slice(),
-      generated_at: new Date().toISOString(),
-      files: rec.kind === "video"
-        ? [`animation.${rec.ext}`, "title.txt", "alt-text.txt", "keyframes.json", "manifest.json"]
-        : ["frames/*", "title.txt", "alt-text.txt", "keyframes.json", "manifest.json"]
-    };
-    zip.file(`${base}/manifest.json`, JSON.stringify(manifest, null, 2) + "\n");
+                    recorder.start();
 
-    const zipBlob = await zip.generateAsync({ type: "blob" });
-    downloadBlob(`${base}.zip`, zipBlob);
-    toast("Exported animation ZIP.");
-  } catch {
-    toast("Animation export failed.");
-  }
-});
+                    const start = performance.now();
 
-/* ---------------------------
- * Init
- * ---------------------------
- */
-ensureStarterProfiles();
-refreshProfileSelect();
-updateAspectLabels(readAspectsFromUI());
-renderStill();
-loopRender();
-setMode("image");
-</script>
+                    for (let f = 0; f < totalFrames; f++) {
+                        // Time-based normalized loop position: completes full cycle in durationMs.
+                        const tNorm = f / totalFrames; // [0,1)
+                        renderAt(tNorm);
+
+                        // Yield more aggressively every ~4 frames to reduce perceived freezing.
+                        if ((f & 3) === 3) {
+                            await new Promise((r) => setTimeout(r, 0));
+                        }
+
+                        await waitUntil(start + (f + 1) * frameInterval);
+                    }
+
+                    try { recorder.requestData(); } catch { }
+                    recorder.stop();
+
+                    const blob = await new Promise((resolve, reject) => {
+                        recorder.onstop = () => {
+                            const out = new Blob(chunks, {
+                                type: recorder.mimeType || (fmt.mime || "video/webm"),
+                            });
+                            resolve(out);
+                        };
+                        recorder.onerror = () => reject(new Error("MediaRecorder error"));
+                    });
+
+                    if (blob && blob.size > 1024) {
+                        return {
+                            kind: "video",
+                            blob,
+                            ext: fmt.ext,
+                            mimeType: blob.type || fmt.mime || "video/webm",
+                            fps,
+                            durationMs,
+                            seed,
+                            totalFrames,
+                        };
+                    }
+                } catch {
+                    // fall through to frames
+                }
+            }
+
+            // Fallback: PNG frames (guaranteed but heavier).
+            // IMPORTANT: This is the mode that can freeze most; we yield often.
+            const frames = [];
+            const start = performance.now();
+
+            for (let f = 0; f < totalFrames; f++) {
+                const tNorm = f / totalFrames;
+                renderAt(tNorm);
+
+                const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+                frames.push({ index: f, blob: pngBlob });
+
+                // Yield every frame in fallback mode (yes, every frame) to keep UI alive.
+                await new Promise((r) => setTimeout(r, 0));
+
+                await waitUntil(start + (f + 1) * frameInterval);
+            }
+
+            return { kind: "frames", frames, fps, durationMs, seed, totalFrames };
+        }
+
+
+
+
+        function computeKeyframeText(seedForTitles, landmarks) {
+            const out = [];
+            for (const k of landmarks) {
+                const seedFn = xmur3(seedForTitles + "::" + k.name);
+                const rng = mulberry32(seedFn());
+                const title = generateTitle(k.aspects, rng);
+
+                const seedFn2 = xmur3(seedForTitles + "::alt::" + k.name);
+                const rng2 = mulberry32(seedFn2());
+                const derived = deriveParams(k.aspects, rng2);
+                const nodeCount = derived.nodeCount;
+
+                const alt = generateAltText(k.aspects, nodeCount, title);
+
+                out.push({
+                    name: k.name,
+                    note: k.note ?? "",
+                    aspects: k.aspects,
+                    title,
+                    altText: alt
+                });
+            }
+            return out;
+        }
+
+        function computeLoopSummaryTitleAlt(seed, landmarks) {
+            const a0 = evalAspectsAt(0.0, landmarks);
+            const seedFn = xmur3(seed + "::bundle");
+            const rng = mulberry32(seedFn());
+            const title = generateTitle(a0, rng);
+
+            const seedFn2 = xmur3(seed + "::bundle-alt");
+            const rng2 = mulberry32(seedFn2());
+            const derived = deriveParams(a0, rng2);
+            const altText = generateAltText(a0, derived.nodeCount, title);
+
+            return { title, altText };
+        }
+
+
+        el.exportAnimZip.addEventListener("click", async () => {
+            if (!window.JSZip) { toast("JSZip missing (offline?)."); return; }
+
+            const landmarks = getLandmarkAspectsOrdered();
+            if (landmarks.length < 2) { toast("Add 2+ landmarks."); return; }
+
+            try {
+                toast("Recording one seamless loop…");
+
+                const rec = await recordOneLoopVideoOrFrames();
+
+                const ts = toIsoLocalish(new Date());
+                const base = `animation_${safeName(rec.seed)}_${ts}`;
+
+                const keyframes = computeKeyframeText(rec.seed, landmarks);
+                const summary = computeLoopSummaryTitleAlt(rec.seed, landmarks);
+
+                const zip = new JSZip();
+
+                if (rec.kind === "video") {
+                    zip.file(`${base}/animation.${rec.ext}`, rec.blob);
+                } else {
+                    const framesDir = `${base}/frames`;
+                    for (const fr of rec.frames) {
+                        const name = String(fr.index).padStart(5, "0");
+                        zip.file(`${framesDir}/frame_${name}.png`, fr.blob);
+                    }
+                    zip.file(`${base}/frames/README.txt`,
+                        "This export contains a PNG frame sequence because video recording was not supported on this browser.\n" +
+                        "You can assemble frames into a video with ffmpeg, e.g.\n" +
+                        "ffmpeg -framerate 24 -i frame_%05d.png -c:v libx264 -pix_fmt yuv420p out.mp4\n"
+                    );
+                }
+
+                zip.file(`${base}/title.txt`, summary.title + "\n");
+                zip.file(`${base}/alt-text.txt`, summary.altText + "\n");
+                zip.file(`${base}/keyframes.json`, JSON.stringify(keyframes, null, 2) + "\n");
+
+                const manifest = {
+                    kind: "animation",
+                    export_kind: rec.kind,
+                    seed: rec.seed,
+                    fps: rec.fps,
+                    duration_ms: rec.durationMs,
+                    total_frames: rec.totalFrames,
+                    time_warp_strength: TIME_WARP_STRENGTH,
+                    motion_blur: {
+                        enabled: MOTION_BLUR_ENABLED,
+                        decay: MB_DECAY,
+                        add: MB_ADD
+                    },
+                    landmarks: loopLandmarks.slice(),
+                    generated_at: new Date().toISOString(),
+                    files: rec.kind === "video"
+                        ? [`animation.${rec.ext}`, "title.txt", "alt-text.txt", "keyframes.json", "manifest.json"]
+                        : ["frames/*", "title.txt", "alt-text.txt", "keyframes.json", "manifest.json"]
+                };
+                zip.file(`${base}/manifest.json`, JSON.stringify(manifest, null, 2) + "\n");
+
+                const zipBlob = await zip.generateAsync({ type: "blob" });
+                downloadBlob(`${base}.zip`, zipBlob);
+                toast("Exported animation ZIP.");
+            } catch {
+                toast("Animation export failed.");
+            }
+        });
+
+        /* ---------------------------
+         * Init
+         * ---------------------------
+         */
+        ensureStarterProfiles();
+        refreshProfileSelect();
+        updateAspectLabels(readAspectsFromUI());
+        renderStill();
+        loopRender();
+        setMode("image");
+    </script>
 </body>
+
 </html>
