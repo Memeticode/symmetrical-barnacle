@@ -1,0 +1,11 @@
+{
+  "name": "geometric-interior-self-portrait",
+  "private": true,
+  "version": "0.3.0",
+  "description": "Client-side generative self-portrait with aspect presets, saved profiles, timeline animation, and WebM export.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "npx serve .",
+    "start": "npx serve ."
+  }
+}

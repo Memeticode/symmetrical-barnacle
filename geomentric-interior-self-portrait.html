@@ -122,6 +122,7 @@
     <canvas id="c" width="1400" height="900" aria-label="Generative self-portrait canvas"></canvas>
   </main>
 
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
 /** ---------------------------
  *  Deterministic PRNG utilities
@@ -412,7 +413,8 @@ function renderPortrait() {
   el.altText.textContent = generateAltText(p, nodes.length, baseHue);
 
   // Title
-  document.getElementById("titleText").textContent = generateTitle(p);
+  const title = generateTitle(p, rng);
+  document.getElementById("titleText").textContent = title;
 
 }
 
@@ -472,7 +474,7 @@ function generateAltText(p, nodeCount, baseHue) {
   ].join("\n");
 }
 
-function generateTitle(p) {
+function generateTitle(p, rng) {
   const coherence = p.symmetry;
   const tension = p.fracture;
   const density = p.recursion;
@@ -504,16 +506,18 @@ function generateTitle(p) {
     lum > 0.5 ? "Soft Radiance" :
     "Dark Coherence";
 
-  const structures = [
-    `${toneWord}: ${coherenceWord}`,
+  const templates = [
     `${tensionWord} ${densityWord}`,
+    `${toneWord}: ${coherenceWord}`,
     `${predictionWord} Across ${coherenceWord}`,
     `${densityWord} in ${toneWord}`,
-    `${coherenceWord}, ${tensionWord}`
+    `${coherenceWord}, ${tensionWord}`,
+    `${toneWord} ${densityWord}`,
   ];
 
-  return structures[Math.floor(Math.random() * structures.length)];
+  return templates[Math.floor(rng() * templates.length)];
 }
+
 
 /** ---------------------------
  *  UI wiring
@@ -551,10 +555,82 @@ el.copyAlt.addEventListener("click", async () => {
   }
 });
 
+/** ---------------------------
+ *  Export bundling
+ *  ---------------------------
+ */
 for (const k of ["sym","fracture","recursion","flow","lum"]) {
   el[k].addEventListener("input", () => renderPortrait());
 }
 el.seed.addEventListener("change", () => renderPortrait());
+function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function toIsoLocalish(d = new Date()) {
+  // Friendly timestamp for filenames
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+
+function canvasToPngBlob(canvas) {
+  return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/png"));
+}
+
+// Wire up export button
+el.exportZip = document.getElementById("exportZip");
+
+el.exportZip.addEventListener("click", async () => {
+  if (!window.JSZip) {
+    alert("JSZip failed to load. Check the CDN script tag.");
+    return;
+  }
+
+  const p = readParams();
+  // Recreate the same deterministic RNG used in render, so title/metadata match.
+  const seedFn = xmur3(p.seed);
+  const rng = mulberry32(seedFn());
+  const title = generateTitle(p, rng);
+
+  // Use what’s currently displayed for alt text
+  const altText = el.altText.textContent || "";
+  const titleText = title || (document.getElementById("titleText").textContent || "");
+
+  const timestamp = toIsoLocalish(new Date());
+  const safeSeed = (p.seed || "seed").replace(/[^a-z0-9_-]+/gi, "_");
+  const baseName = `self-portrait_${safeSeed}_${timestamp}`;
+
+  const pngBlob = await canvasToPngBlob(canvas);
+
+  const metadata = {
+    title: titleText,
+    seed: p.seed,
+    params: {
+      symmetry: p.symmetry,
+      fracture: p.fracture,
+      recursion: p.recursion,
+      flow: p.flow,
+      lum: p.lum
+    },
+    canvas: { width: canvas.width, height: canvas.height },
+    generated_at: new Date().toISOString()
+  };
+
+  const zip = new JSZip();
+  zip.file(`${baseName}/image.png`, pngBlob);
+  zip.file(`${baseName}/title.txt`, titleText + "\n");
+  zip.file(`${baseName}/alt-text.txt`, altText + "\n");
+  zip.file(`${baseName}/metadata.json`, JSON.stringify(metadata, null, 2) + "\n`);
+
+  const zipBlob = await zip.generateAsync({ type: "blob" });
+  downloadBlob(`${baseName}.zip`, zipBlob);
+});
+
 
 // Initial render
 renderPortrait();
