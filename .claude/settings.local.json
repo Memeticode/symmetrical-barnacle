@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm pack:*)",
       "Bash(tar:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npx serve)"
     ]
   }
 }

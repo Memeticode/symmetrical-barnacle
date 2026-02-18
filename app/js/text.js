@@ -43,3 +43,115 @@ export function generateAltText(aspects, nodeCount, title) {
         `Overall mood: ${tonePhrase}; coherence under revision; connection and separateness held in the same geometry.`
     ].join("\n");
 }
+
+/* ── Animation alt-text ── */
+
+const ASPECT_KEYS = ['coherence', 'tension', 'recursion', 'motion', 'vulnerability', 'radiance'];
+
+const DYNAMIC_PHRASES = {
+    coherence:     'symmetry tightens and loosens, structure questioning its own axis',
+    tension:       'fracture surfaces and heals, edges sharpening then softening',
+    recursion:     'layers deepen and thin, the geometry rehearsing its own depth',
+    motion:        'flow-fields strengthen and fade, prediction revising itself',
+    vulnerability: 'boundaries open and close, separation negotiating intimacy',
+    radiance:      'light swells and dims, warmth arriving and withdrawing',
+};
+
+const STABLE_PHRASES = {
+    coherence:     'structural alignment holds steady',
+    tension:       'tension holds at a consistent register',
+    recursion:     'layer density remains constant',
+    motion:        'the flow-field maintains its strength',
+    vulnerability: 'boundary permeability stays fixed',
+    radiance:      'luminosity persists unchanged',
+};
+
+const TRANSITION_VERBS = {
+    coherence:     { rises: 'alignment gathering',    falls: 'symmetry loosening' },
+    tension:       { rises: 'edges sharpening',       falls: 'tension releasing' },
+    recursion:     { rises: 'layers accumulating',    falls: 'geometry simplifying' },
+    motion:        { rises: 'drift accelerating',     falls: 'movement stilling' },
+    vulnerability: { rises: 'boundaries softening',   falls: 'edges firming' },
+    radiance:      { rises: 'light arriving',         falls: 'glow receding' },
+};
+
+/**
+ * Generate alt-text for an animation loop that describes the journey.
+ * @param {Array<{name: string, aspects: object}>} landmarks
+ * @param {number} durationSecs
+ * @param {Array<{name: string, title: string}>} keyframeTexts
+ * @returns {string}
+ */
+export function generateAnimAltText(landmarks, durationSecs, keyframeTexts) {
+    const n = landmarks.length;
+
+    // Compute aspect ranges
+    const ranges = {};
+    for (const key of ASPECT_KEYS) {
+        const values = landmarks.map(l => l.aspects[key]);
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        ranges[key] = { min, max, spread: max - min };
+    }
+
+    // Classify dynamic vs stable
+    const DYNAMIC_THRESHOLD = 0.15;
+    const dynamicAspects = ASPECT_KEYS
+        .filter(k => ranges[k].spread >= DYNAMIC_THRESHOLD)
+        .sort((a, b) => ranges[b].spread - ranges[a].spread);
+    const stableAspects = ASPECT_KEYS
+        .filter(k => ranges[k].spread < DYNAMIC_THRESHOLD);
+
+    const parts = [];
+
+    // Opening
+    parts.push(
+        `A ${durationSecs}-second loop cycles through ${n} landmark${n !== 1 ? 's' : ''}, each a geometry of interiority under revision.`
+    );
+
+    // Dynamic aspects
+    if (dynamicAspects.length > 0) {
+        const phrases = dynamicAspects.map(k => DYNAMIC_PHRASES[k]);
+        parts.push(`Across the cycle, ${phrases.join('; ')}.`);
+    }
+
+    // Stable aspects
+    if (stableAspects.length > 0 && stableAspects.length < ASPECT_KEYS.length) {
+        const phrases = stableAspects.map(k => STABLE_PHRASES[k]);
+        parts.push(
+            `Throughout, ${phrases.join('; ')}` +
+            (stableAspects.length > 1 ? ' \u2014 the commitments this identity refuses to release.' : '.')
+        );
+    }
+
+    // Per-transition descriptions
+    if (n >= 2) {
+        const transitions = [];
+        for (let i = 0; i < n; i++) {
+            const from = landmarks[i];
+            const to = landmarks[(i + 1) % n];
+            const fromTitle = keyframeTexts[i]?.title || from.name;
+            const toTitle = keyframeTexts[(i + 1) % n]?.title || to.name;
+
+            let maxDelta = 0, maxKey = ASPECT_KEYS[0];
+            for (const key of ASPECT_KEYS) {
+                const delta = Math.abs(to.aspects[key] - from.aspects[key]);
+                if (delta > maxDelta) { maxDelta = delta; maxKey = key; }
+            }
+
+            const direction = to.aspects[maxKey] > from.aspects[maxKey] ? 'rises' : 'falls';
+            const verb = TRANSITION_VERBS[maxKey]?.[direction] || 'the field shifting';
+            transitions.push(`from \u201c${fromTitle}\u201d to \u201c${toTitle}\u201d: ${verb}`);
+        }
+        parts.push(`The journey moves ${transitions.join('; ')}.`);
+    }
+
+    // Closing
+    parts.push(
+        'Motion completes its cycle but never truly repeats. ' +
+        'Forms overlap but do not collapse. ' +
+        'The geometry returns to where it began, changed by having moved.'
+    );
+
+    return parts.join('\n');
+}

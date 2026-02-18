@@ -7,7 +7,7 @@ import { createMotionBlur } from './motion-blur.js';
 import { evalAspectsAt, TIME_WARP_STRENGTH } from './interpolation.js';
 import { loadProfiles, saveProfiles, deleteProfile, refreshProfileSelect, ensureStarterProfiles, renderLoopList } from './profiles.js';
 import { createAnimationController, preRenderFrames, exportFromBuffer, ANIM_FPS, MOTION_BLUR_ENABLED, MB_DECAY, MB_ADD } from './animation.js';
-import { packageStillZip, packageAnimZip } from './export.js';
+import { packageStillZip, packageAnimZip, computeLoopSummaryTitleAlt } from './export.js';
 import { initTheme } from './theme.js';
 
 /* ---------------------------
@@ -46,6 +46,7 @@ const el = {
     randomize: document.getElementById('randomize'),
     exportStillZip: document.getElementById('exportStillZip'),
     profileGallery: document.getElementById('profileGallery'),
+    galleryLabel: document.getElementById('galleryLabel'),
 
     profileSelect: document.getElementById('profileSelect'),
     addToLoop: document.getElementById('addToLoop'),
@@ -67,6 +68,16 @@ const el = {
     artistStatement: document.getElementById('artistStatement'),
     artistModal: document.getElementById('artistModal'),
     artistModalClose: document.getElementById('artistModalClose'),
+
+    canvasOverlay: document.getElementById('canvasOverlay'),
+    canvasSpinner: document.getElementById('canvasSpinner'),
+    canvasOverlayText: document.getElementById('canvasOverlayText'),
+    stageAnimControls: document.getElementById('stageAnimControls'),
+
+    infoModal: document.getElementById('infoModal'),
+    infoModalTitle: document.getElementById('infoModalTitle'),
+    infoModalBody: document.getElementById('infoModalBody'),
+    infoModalClose: document.getElementById('infoModalClose'),
 };
 
 /* ---------------------------
@@ -95,8 +106,9 @@ function renderThumbnail(seed, aspects, destImg) {
  * State
  * ---------------------------
  */
+let currentMode = 'image';
 let loopLandmarks = [];
-let loopDurationMs = 30_000;
+let loopDurationMs = 7_000;
 
 const frameBuffer = {
     frames: [],
@@ -126,6 +138,12 @@ function invalidateFrameBuffer() {
     el.renderAnim.disabled = false;
     el.renderAnim.textContent = 'Render';
     el.progressBar.style.width = '0%';
+
+    if (currentMode === 'anim') {
+        showCanvasOverlay('Render to preview');
+        el.titleText.textContent = '';
+        el.altText.textContent = '';
+    }
 }
 
 /* ---------------------------
@@ -160,11 +178,83 @@ function updateAspectLabels(a) {
 
 function readNote() { return (el.note.value ?? '').trim(); }
 
+/* Canvas overlay helpers */
+function showCanvasOverlay(text, showSpinner = false) {
+    el.canvasOverlayText.textContent = text;
+    el.canvasOverlay.classList.remove('hidden');
+    if (showSpinner) {
+        el.canvasSpinner.classList.remove('hidden');
+    } else {
+        el.canvasSpinner.classList.add('hidden');
+    }
+}
+
+function hideCanvasOverlay() {
+    el.canvasOverlay.classList.add('hidden');
+    el.canvasSpinner.classList.add('hidden');
+}
+
+/* Typewriter effect */
+let typewriterAbort = null;
+
+function typewriterEffect(element, text, charDelayMs, onComplete) {
+    let i = 0;
+    let cancelled = false;
+    element.style.whiteSpace = 'nowrap';
+
+    function tick() {
+        if (cancelled) return;
+        if (i <= text.length) {
+            element.textContent = text.slice(0, i);
+            i++;
+            setTimeout(tick, charDelayMs);
+        } else {
+            element.style.whiteSpace = '';
+            if (onComplete) onComplete();
+        }
+    }
+    tick();
+    return () => { cancelled = true; };
+}
+
+function playRevealAnimation(titleText, altText) {
+    // Cancel any in-progress typewriter
+    if (typewriterAbort) { typewriterAbort(); typewriterAbort = null; }
+
+    // Canvas wipe
+    const wrapper = document.querySelector('.canvas-wrapper');
+    const wipe = document.createElement('div');
+    wipe.className = 'reveal-wipe';
+    wrapper.appendChild(wipe);
+    wipe.addEventListener('animationend', () => wipe.remove());
+
+    // Typewriter for title
+    el.titleText.textContent = '';
+    el.titleText.classList.add('typewriter');
+    const cancelTitle = typewriterEffect(el.titleText, titleText, 30, () => {
+        el.titleText.classList.remove('typewriter');
+
+        // Typewriter for alt-text (starts after title finishes)
+        el.altText.textContent = '';
+        el.altText.classList.add('typewriter');
+        const cancelAlt = typewriterEffect(el.altText, altText, 8, () => {
+            el.altText.classList.remove('typewriter');
+            typewriterAbort = null;
+        });
+        typewriterAbort = cancelAlt;
+    });
+    typewriterAbort = cancelTitle;
+}
+
 /** Render + update DOM title/alt. */
-function renderAndUpdate(seed, aspects) {
+function renderAndUpdate(seed, aspects, { animate = false } = {}) {
     const meta = renderer.renderWith(seed, aspects);
-    el.titleText.textContent = meta.title;
-    el.altText.textContent = meta.altText;
+    if (animate) {
+        playRevealAnimation(meta.title, meta.altText);
+    } else {
+        el.titleText.textContent = meta.title;
+        el.altText.textContent = meta.altText;
+    }
     return meta;
 }
 
@@ -233,12 +323,15 @@ el.loopDuration.addEventListener('input', () => {
  * ---------------------------
  */
 function setMode(mode) {
+    currentMode = mode;
     if (mode === 'image') {
         el.modeImage.classList.add('active');
         el.modeAnim.classList.remove('active');
         el.imageSection.classList.remove('hidden');
         el.animSection.classList.add('hidden');
+        el.stageAnimControls.classList.add('hidden');
 
+        hideCanvasOverlay();
         animController.stop();
         motionBlur.setEnabled(false);
         motionBlur.clear();
@@ -248,6 +341,7 @@ function setMode(mode) {
         el.modeImage.classList.remove('active');
         el.animSection.classList.remove('hidden');
         el.imageSection.classList.add('hidden');
+        el.stageAnimControls.classList.remove('hidden');
 
         motionBlur.setEnabled(MOTION_BLUR_ENABLED);
         motionBlur.clear();
@@ -255,13 +349,18 @@ function setMode(mode) {
         refreshProfileSelect(el.profileSelect);
         refreshLoopList();
 
-        const landmarks = getLandmarkAspectsOrdered();
-        if (landmarks.length >= 2) {
-            const aspects = evalAspectsAt(0.0, landmarks);
-            renderAndUpdate(deriveAnimSeed(), aspects);
-            motionBlur.apply();
+        if (frameBuffer.rendered) {
+            hideCanvasOverlay();
+            if (frameBuffer.frames.length > 0) {
+                ctx.drawImage(frameBuffer.frames[0], 0, 0);
+            }
+        } else {
+            showCanvasOverlay('Render to preview');
+            el.titleText.textContent = '';
+            el.altText.textContent = '';
         }
     }
+    refreshProfileGallery();
 }
 
 el.modeImage.addEventListener('click', () => setMode('image'));
@@ -279,7 +378,10 @@ function renderStill() {
 }
 
 el.renderStill.addEventListener('click', () => {
-    renderStill();
+    const seed = el.seed.value.trim() || 'seed';
+    const aspects = readAspectsFromUI();
+    updateAspectLabels(aspects);
+    renderAndUpdate(seed, aspects, { animate: true });
     toast('Rendered.');
 });
 
@@ -313,18 +415,29 @@ el.randomize.addEventListener('click', () => {
     for (const id of ['coherence', 'tension', 'recursion', 'motion', 'vulnerability', 'radiance']) {
         el[id].value = Math.random().toFixed(2);
     }
-    renderStill();
+    const seed = el.seed.value.trim() || 'seed';
+    const aspects = readAspectsFromUI();
+    updateAspectLabels(aspects);
+    renderAndUpdate(seed, aspects, { animate: true });
     toast('Randomized.');
 });
 
 /* ---------------------------
- * Profile gallery (image mode)
+ * Profile gallery (shared, mode-aware)
  * ---------------------------
  */
+const TRASH_SVG = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0v-6z"/><path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg>';
+
 function refreshProfileGallery() {
     const profiles = loadProfiles();
     const names = Object.keys(profiles).sort((a, b) => a.localeCompare(b));
     el.profileGallery.innerHTML = '';
+
+    if (el.galleryLabel) {
+        el.galleryLabel.textContent = currentMode === 'image'
+            ? 'Saved Profiles (images)'
+            : 'Saved Profiles (add to loop)';
+    }
 
     if (names.length === 0) {
         const d = document.createElement('div');
@@ -361,36 +474,53 @@ function refreshProfileGallery() {
         const actions = document.createElement('div');
         actions.className = 'profile-card-actions';
 
-        const loadBtn = document.createElement('button');
-        loadBtn.textContent = 'Load';
-        loadBtn.addEventListener('click', () => {
-            if (p.seed) el.seed.value = p.seed;
-            if (p.note) el.note.value = p.note;
-            if (p.aspects) {
-                for (const [key, val] of Object.entries(p.aspects)) {
-                    if (el[key]) el[key].value = val;
+        // Contextual action button
+        const actionBtn = document.createElement('button');
+        if (currentMode === 'image') {
+            actionBtn.textContent = 'Load';
+            actionBtn.addEventListener('click', () => {
+                if (p.seed) el.seed.value = p.seed;
+                if (p.note) el.note.value = p.note;
+                if (p.aspects) {
+                    for (const [key, val] of Object.entries(p.aspects)) {
+                        if (el[key]) el[key].value = val;
+                    }
                 }
-            }
-            el.profileName.value = name;
-            renderStill();
-            toast(`Loaded: ${name}`);
-        });
+                el.profileName.value = name;
+                const seed = el.seed.value.trim() || 'seed';
+                const aspects = readAspectsFromUI();
+                updateAspectLabels(aspects);
+                renderAndUpdate(seed, aspects, { animate: true });
+                toast(`Loaded: ${name}`);
+            });
+        } else {
+            actionBtn.textContent = 'Add';
+            actionBtn.classList.add('primary');
+            actionBtn.addEventListener('click', () => {
+                loopLandmarks.push(name);
+                invalidateFrameBuffer();
+                refreshLoopList();
+                toast(`Added: ${name}`);
+            });
+        }
 
+        actions.appendChild(actionBtn);
+        body.appendChild(actions);
+        card.appendChild(body);
+
+        // Delete button (trashcan icon, upper-right)
         const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'danger';
-        deleteBtn.textContent = '\u2715';
+        deleteBtn.className = 'profile-card-delete';
         deleteBtn.title = 'Delete';
+        deleteBtn.innerHTML = TRASH_SVG;
         deleteBtn.addEventListener('click', () => {
             deleteProfile(name);
             refreshProfileSelect(el.profileSelect);
             refreshProfileGallery();
             toast(`Deleted: ${name}`);
         });
+        card.appendChild(deleteBtn);
 
-        actions.appendChild(loadBtn);
-        actions.appendChild(deleteBtn);
-        body.appendChild(actions);
-        card.appendChild(body);
         el.profileGallery.appendChild(card);
     }
 }
@@ -447,6 +577,8 @@ el.renderAnim.addEventListener('click', async () => {
     el.playPause.disabled = true;
     el.exportAnimZip.disabled = true;
 
+    showCanvasOverlay('Rendering\u2026', true);
+
     const seed = deriveAnimSeed();
 
     try {
@@ -465,6 +597,7 @@ el.renderAnim.addEventListener('click', async () => {
         });
 
         if (!frames) {
+            showCanvasOverlay('Render to preview');
             toast('Render cancelled.');
             return;
         }
@@ -478,9 +611,20 @@ el.renderAnim.addEventListener('click', async () => {
         el.exportAnimZip.disabled = false;
         el.renderAnim.textContent = 'Re-render';
 
+        // Show the first frame on canvas
+        if (frames.length > 0) {
+            ctx.drawImage(frames[0], 0, 0);
+        }
+        hideCanvasOverlay();
+
+        // Compute and display animation alt-text with reveal
+        const summary = computeLoopSummaryTitleAlt(seed, landmarks, loopDurationMs / 1000);
+        playRevealAnimation(summary.title, summary.altText);
+
         toast(`Rendered ${frames.length} frames.`);
     } catch (err) {
         console.error(err);
+        showCanvasOverlay('Render to preview');
         toast('Render failed.');
     } finally {
         frameBuffer.rendering = false;
@@ -592,8 +736,41 @@ el.artistModalClose.addEventListener('click', closeArtistModal);
 el.artistModal.addEventListener('click', (e) => {
     if (e.target === el.artistModal) closeArtistModal();
 });
+
+/* ---------------------------
+ * Info modal (aspect descriptions)
+ * ---------------------------
+ */
+function openInfoModal(title, body) {
+    el.infoModalTitle.textContent = title;
+    el.infoModalBody.textContent = body;
+    el.infoModal.classList.remove('hidden');
+}
+
+function closeInfoModal() {
+    el.infoModal.classList.add('hidden');
+}
+
+el.infoModalClose.addEventListener('click', closeInfoModal);
+el.infoModal.addEventListener('click', (e) => {
+    if (e.target === el.infoModal) closeInfoModal();
+});
+
+document.addEventListener('click', (e) => {
+    const labelInfo = e.target.closest('.label-info');
+    if (labelInfo) {
+        const title = labelInfo.getAttribute('data-label') || '';
+        const body = labelInfo.getAttribute('data-tooltip') || '';
+        openInfoModal(title, body);
+    }
+});
+
+/* Escape key — close whichever modal is open */
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !el.artistModal.classList.contains('hidden')) {
+    if (e.key !== 'Escape') return;
+    if (!el.infoModal.classList.contains('hidden')) {
+        closeInfoModal();
+    } else if (!el.artistModal.classList.contains('hidden')) {
         closeArtistModal();
     }
 });

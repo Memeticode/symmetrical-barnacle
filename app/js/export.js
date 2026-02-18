@@ -4,7 +4,7 @@
 
 import { xmur3, mulberry32 } from './prng.js';
 import { deriveParams } from './params.js';
-import { generateTitle, generateAltText } from './text.js';
+import { generateTitle, generateAltText, generateAnimAltText } from './text.js';
 import { evalAspectsAt } from './interpolation.js';
 import { ANIM_FPS, MOTION_BLUR_ENABLED, MB_DECAY, MB_ADD } from './animation.js';
 
@@ -121,16 +121,14 @@ export function computeKeyframeText(seedForTitles, landmarks) {
     return out;
 }
 
-export function computeLoopSummaryTitleAlt(seed, landmarks) {
+export function computeLoopSummaryTitleAlt(seed, landmarks, durationSecs) {
     const a0 = evalAspectsAt(0.0, landmarks);
     const seedFn = xmur3(seed + '::bundle');
     const rng = mulberry32(seedFn());
     const title = generateTitle(a0, rng);
 
-    const seedFn2 = xmur3(seed + '::bundle-alt');
-    const rng2 = mulberry32(seedFn2());
-    const derived = deriveParams(a0, rng2);
-    const altText = generateAltText(a0, derived.nodeCount, title);
+    const keyframeTexts = computeKeyframeText(seed, landmarks);
+    const altText = generateAnimAltText(landmarks, durationSecs, keyframeTexts);
 
     return { title, altText };
 }
@@ -182,7 +180,7 @@ export async function packageAnimZip(rec, { landmarks, loopLandmarkNames, timeWa
     const base = `animation_${safeName(rec.seed)}_${ts}`;
 
     const keyframes = computeKeyframeText(rec.seed, landmarks);
-    const summary = computeLoopSummaryTitleAlt(rec.seed, landmarks);
+    const summary = computeLoopSummaryTitleAlt(rec.seed, landmarks, rec.durationMs / 1000);
 
     const zip = new JSZip();
 

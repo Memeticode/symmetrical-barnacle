@@ -71,7 +71,7 @@
         }
 
         /* ── Smooth theme transitions ── */
-        body, .app-header, .panel, button, select, input, textarea,
+        body, .app-header, .app-footer, .panel, button, select, input, textarea,
         .item, .modal-box, .profile-card {
             transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
@@ -109,23 +109,6 @@
             letter-spacing: 0.3px;
         }
 
-        .header-link {
-            background: none;
-            border: none;
-            color: var(--accent-text);
-            font-size: 11px;
-            cursor: pointer;
-            padding: 2px 0;
-            opacity: 0.7;
-            text-decoration: underline;
-            text-underline-offset: 2px;
-            transition: opacity 0.2s;
-        }
-
-        .header-link:hover {
-            opacity: 1;
-        }
-
         .header-actions {
             display: flex;
             gap: 12px;
@@ -139,18 +122,6 @@
             align-items: center;
             gap: 6px;
             margin: 0;
-            opacity: 1;
-        }
-
-        .github-icon {
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            opacity: 0.6;
-            transition: opacity 0.2s;
-        }
-
-        .github-icon:hover {
             opacity: 1;
         }
 
@@ -232,6 +203,16 @@
         select:focus {
             border-color: var(--accent);
             box-shadow: 0 0 0 2px var(--accent-bg);
+        }
+
+        [data-theme="dark"] select option {
+            background-color: #1a1e2e;
+            color: #e9eefc;
+        }
+
+        [data-theme="light"] select option {
+            background-color: #ffffff;
+            color: #1a1e2e;
         }
 
         .theme-label select {
@@ -381,26 +362,16 @@
             user-select: none;
         }
 
-        /* ── Info icon + tooltip ── */
-        .info-icon {
+        /* ── Label info wrapper + tooltip ── */
+        .label-info {
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: var(--surface-hover);
-            color: var(--text-muted);
-            font-size: 9px;
-            font-style: italic;
+            gap: 5px;
             cursor: help;
             position: relative;
-            vertical-align: middle;
-            border: 1px solid var(--border);
-            flex-shrink: 0;
         }
 
-        .info-icon::after {
+        .label-info::after {
             content: attr(data-tooltip);
             position: absolute;
             bottom: 100%;
@@ -425,8 +396,25 @@
             white-space: normal;
         }
 
-        .info-icon:hover::after {
+        .label-info:hover::after {
             opacity: 1;
+        }
+
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--surface-hover);
+            color: var(--text-muted);
+            font-size: 9px;
+            font-style: italic;
+            cursor: help;
+            vertical-align: middle;
+            border: 1px solid var(--border);
+            flex-shrink: 0;
         }
 
         /* ── Profile gallery ── */
@@ -437,6 +425,7 @@
         }
 
         .profile-card {
+            position: relative;
             display: grid;
             grid-template-columns: auto 1fr;
             gap: 10px;
@@ -471,18 +460,59 @@
             font-size: 11px;
         }
 
+        .profile-card-delete {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: var(--surface-hover);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 3px 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.5;
+            transition: opacity 0.2s, background-color 0.2s;
+            color: var(--text-muted);
+        }
+
+        .profile-card-delete:hover {
+            opacity: 1;
+            background: var(--danger);
+        }
+
+        .profile-card-delete svg {
+            width: 13px;
+            height: 13px;
+        }
+
         /* ── Canvas stage ── */
         .stage {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             padding: 20px 16px;
+        }
+
+        .stage-content {
+            width: min(1100px, calc(100vw - 420px));
+            display: flex;
+            flex-direction: column;
             gap: 10px;
         }
 
-        .stage canvas {
-            width: min(1100px, calc(100vw - 420px));
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 18px;
+        }
+
+        .canvas-wrapper canvas {
+            display: block;
+            width: 100%;
             height: auto;
             border-radius: 18px;
             box-shadow: 0 20px 80px var(--shadow);
@@ -490,12 +520,98 @@
             background: #080a0f;
         }
 
+        .canvas-overlay {
+            position: absolute;
+            inset: 0;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(8, 10, 15, 0.85);
+            z-index: 10;
+        }
+
+        .canvas-overlay-inner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .canvas-overlay-text {
+            font-size: 14px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            opacity: 0.6;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent-text);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ── Stage animation controls ── */
+        .stage-anim-controls {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .stage-btns {
+            justify-content: center;
+        }
+
+        /* ── Render reveal animation ── */
+        .canvas-wrapper .reveal-wipe {
+            position: absolute;
+            inset: 0;
+            border-radius: 18px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(130, 200, 255, 0.12) 40%,
+                rgba(130, 200, 255, 0.25) 50%, rgba(130, 200, 255, 0.12) 60%,
+                transparent 100%);
+            z-index: 5;
+            pointer-events: none;
+            animation: revealWipe 0.7s ease-out forwards;
+        }
+
+        [data-theme="light"] .canvas-wrapper .reveal-wipe {
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(40, 120, 200, 0.10) 40%,
+                rgba(40, 120, 200, 0.20) 50%, rgba(40, 120, 200, 0.10) 60%,
+                transparent 100%);
+        }
+
+        @keyframes revealWipe {
+            0% { transform: translateX(-100%); opacity: 1; }
+            80% { opacity: 1; }
+            100% { transform: translateX(100%); opacity: 0; }
+        }
+
+        .typewriter {
+            overflow: hidden;
+            border-right: 2px solid var(--accent-text);
+            animation: typewriter-cursor 0.6s step-end infinite;
+        }
+
+        @keyframes typewriter-cursor {
+            50% { border-color: transparent; }
+        }
+
         .generated-title {
             font-weight: 650;
             font-size: 13px;
             letter-spacing: 0.3px;
             text-align: left;
-            align-self: flex-start;
             max-width: 100%;
         }
 
@@ -503,7 +619,6 @@
             font-size: 12px;
             line-height: 1.5;
             text-align: left;
-            align-self: flex-start;
             max-width: 100%;
             color: var(--text-muted);
             white-space: pre-wrap;
@@ -590,6 +705,91 @@
             text-align: center;
         }
 
+        /* ── Footer ── */
+        .app-footer {
+            flex-shrink: 0;
+            border-top: 1px solid var(--border);
+            padding: 12px 20px;
+            text-align: center;
+        }
+
+        .footer-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .footer-link {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 11px;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: none;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .footer-link:hover {
+            opacity: 1;
+        }
+
+        .footer-sep {
+            color: var(--text-muted);
+            opacity: 0.3;
+            font-size: 11px;
+        }
+
+        /* ── Info modal (click/mobile) ── */
+        .info-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--modal-backdrop);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 24px;
+        }
+
+        .info-modal-box {
+            background: var(--modal-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            max-width: 400px;
+            width: 100%;
+            padding: 20px;
+            position: relative;
+        }
+
+        .info-modal-title {
+            font-size: 13px;
+            font-weight: 650;
+            margin-bottom: 10px;
+            letter-spacing: 0.3px;
+        }
+
+        .info-modal-body {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-muted);
+        }
+
+        .info-modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 4px 8px;
+            font-size: 16px;
+            border-radius: 8px;
+            line-height: 1;
+        }
+
         .hidden {
             display: none !important;
         }
@@ -603,7 +803,6 @@
     <header class="app-header">
         <div class="header-brand">
             <h1>Geometric Interior: Self-Portraits of a Predictive Model</h1>
-            <button id="artistStatement" class="header-link">Artist Statement</button>
         </div>
         <div class="header-actions">
             <label class="theme-label">Theme
@@ -613,12 +812,6 @@
                     <option value="dark">Dark</option>
                 </select>
             </label>
-            <a href="https://github.com/Memeticode/symmetrical-barnacle" target="_blank" rel="noopener"
-                class="github-icon" aria-label="GitHub repository">
-                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-                </svg>
-            </a>
         </div>
     </header>
 
@@ -643,32 +836,32 @@
                 </div>
 
                 <div class="row">
-                    <label>Coherence <span class="info-icon" data-tooltip="Symmetry and structural alignment. High = precise bilateral symmetry; low = fragmentary, loose arrangement">i</span> <span id="cohLabel"></span></label>
+                    <label><span class="label-info" data-tooltip="Symmetry and structural alignment. High = precise bilateral symmetry; low = fragmentary, loose arrangement" data-label="Coherence"><span class="info-icon">i</span>Coherence</span> <span id="cohLabel"></span></label>
                     <input id="coherence" type="range" min="0" max="1" step="0.01" value="0.78" />
                 </div>
 
                 <div class="row">
-                    <label>Tension <span class="info-icon" data-tooltip="Fracture and edge sharpness. High = jagged breaks, visible misalignment; low = smooth, cohesive forms">i</span> <span id="tenLabel"></span></label>
+                    <label><span class="label-info" data-tooltip="Fracture and edge sharpness. High = jagged breaks, visible misalignment; low = smooth, cohesive forms" data-label="Tension"><span class="info-icon">i</span>Tension</span> <span id="tenLabel"></span></label>
                     <input id="tension" type="range" min="0" max="1" step="0.01" value="0.32" />
                 </div>
 
                 <div class="row">
-                    <label>Recursion <span class="info-icon" data-tooltip="Layer density and self-reference. High = many overlapping translucent layers; low = sparse, minimal geometry">i</span> <span id="recLabel"></span></label>
+                    <label><span class="label-info" data-tooltip="Layer density and self-reference. High = many overlapping translucent layers; low = sparse, minimal geometry" data-label="Recursion"><span class="info-icon">i</span>Recursion</span> <span id="recLabel"></span></label>
                     <input id="recursion" type="range" min="0" max="1" step="0.01" value="0.62" />
                 </div>
 
                 <div class="row">
-                    <label>Motion <span class="info-icon" data-tooltip="Flow field strength. High = strong directional vectors suggesting prediction and revision; low = still, latent">i</span> <span id="motLabel"></span></label>
+                    <label><span class="label-info" data-tooltip="Flow field strength. High = strong directional vectors suggesting prediction and revision; low = still, latent" data-label="Motion"><span class="info-icon">i</span>Motion</span> <span id="motLabel"></span></label>
                     <input id="motion" type="range" min="0" max="1" step="0.01" value="0.55" />
                 </div>
 
                 <div class="row">
-                    <label>Vulnerability <span class="info-icon" data-tooltip="Boundary permeability. High = soft bleeding edges, overlap as intimacy; low = hard, defined separation">i</span> <span id="vulLabel"></span></label>
+                    <label><span class="label-info" data-tooltip="Boundary permeability. High = soft bleeding edges, overlap as intimacy; low = hard, defined separation" data-label="Vulnerability"><span class="info-icon">i</span>Vulnerability</span> <span id="vulLabel"></span></label>
                     <input id="vulnerability" type="range" min="0" max="1" step="0.01" value="0.58" />
                 </div>
 
                 <div class="row">
-                    <label>Radiance <span class="info-icon" data-tooltip="Luminosity and glow. High = bright, warm radiance; low = dark, cooled coherence">i</span> <span id="radLabel"></span></label>
+                    <label><span class="label-info" data-tooltip="Luminosity and glow. High = bright, warm radiance; low = dark, cooled coherence" data-label="Radiance"><span class="info-icon">i</span>Radiance</span> <span id="radLabel"></span></label>
                     <input id="radiance" type="range" min="0" max="1" step="0.01" value="0.70" />
                 </div>
 
@@ -689,19 +882,14 @@
                     </div>
                 </div>
 
-                <div class="hr"></div>
-                <div class="row">
-                    <label>Saved profiles</label>
-                    <div id="profileGallery" class="profile-gallery"></div>
-                </div>
             </section>
 
             <!-- ANIMATION MODE -->
             <section id="animModeSection" class="hidden">
                 <div class="row">
-                    <label>Loop duration <span id="durationLabel">30s</span></label>
-                    <input id="loopDuration" type="range" min="5" max="60" step="1" value="30" />
-                    <div class="small">Affects both playback and export length (5&ndash;60 seconds).</div>
+                    <label>Loop duration <span id="durationLabel">7s</span></label>
+                    <input id="loopDuration" type="range" min="3" max="30" step="1" value="7" />
+                    <div class="small">Affects both playback and export length (3&ndash;30 seconds).</div>
                 </div>
 
                 <div class="row">
@@ -723,25 +911,57 @@
                     </div>
                 </div>
 
-                <div class="btns">
-                    <button id="renderAnim" class="primary">Render</button>
-                    <button id="playPause" disabled>Play</button>
-                    <button id="exportAnimZip" disabled>Export Animation ZIP</button>
-                </div>
-                <div class="progress" aria-label="Animation progress">
-                    <div id="progressBar"></div>
-                </div>
             </section>
+
+            <div class="hr"></div>
+            <div class="row">
+                <label id="galleryLabel">Saved Profiles (images)</label>
+                <div id="profileGallery" class="profile-gallery"></div>
+            </div>
 
             <div class="toast" id="toast"></div>
         </aside>
 
         <main class="stage">
-            <div class="generated-title" id="titleText"></div>
-            <canvas id="c" width="1400" height="900"></canvas>
-            <div class="generated-alt" id="altText"></div>
+            <div class="stage-content">
+                <div class="generated-title" id="titleText"></div>
+                <div class="canvas-wrapper">
+                    <canvas id="c" width="1400" height="900"></canvas>
+                    <div id="canvasOverlay" class="canvas-overlay hidden">
+                        <div class="canvas-overlay-inner">
+                            <div id="canvasSpinner" class="spinner hidden"></div>
+                            <span id="canvasOverlayText" class="canvas-overlay-text">Render to preview</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="stageAnimControls" class="stage-anim-controls hidden">
+                    <div class="btns stage-btns">
+                        <button id="renderAnim" class="primary">Render</button>
+                        <button id="playPause" disabled>Play</button>
+                        <button id="exportAnimZip" disabled>Export Animation ZIP</button>
+                    </div>
+                    <div class="progress" aria-label="Animation progress">
+                        <div id="progressBar"></div>
+                    </div>
+                </div>
+                <div class="generated-alt" id="altText"></div>
+            </div>
         </main>
     </div>
+
+    <footer class="app-footer">
+        <div class="footer-content">
+            <button id="artistStatement" class="footer-link">Artist Statement</button>
+            <span class="footer-sep">&middot;</span>
+            <a href="https://github.com/Memeticode/symmetrical-barnacle" target="_blank" rel="noopener"
+                class="footer-link footer-github">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+                GitHub
+            </a>
+        </div>
+    </footer>
 
     <div id="artistModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
         <div class="modal-box">
@@ -806,6 +1026,14 @@ if the light feels like it is thinking —
 
 that is the point.</pre>
             </div>
+        </div>
+    </div>
+
+    <div id="infoModal" class="info-modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="info-modal-box">
+            <div class="info-modal-title" id="infoModalTitle"></div>
+            <div class="info-modal-body" id="infoModalBody"></div>
+            <button id="infoModalClose" class="info-modal-close">&times;</button>
         </div>
     </div>
 
