@@ -1,0 +1,15 @@
+Is it possible to remover the render button? Image reloads when user changes something, title and alt text also reload? Is this too slow for the animation?
+
+Idea is that we definetly want images to update in real-time in response to user change in config. Not sure if the same is feasible with animation.
+
+
+Add animation time slider bar above animation. (occupies space remaining from validation). probably add play/pause butons too.
+
+
+Apply fancy loading icon to whole page while menus load, then do render animation.
+
+
+
+Dropdown arrow bug in individual profiles
+
+Light theme text color bug in theme selector

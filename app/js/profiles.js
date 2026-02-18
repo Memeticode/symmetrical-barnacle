@@ -3,6 +3,12 @@
  */
 
 const LS_KEY = 'geo_self_portrait_profiles_v3';
+const ANIM_LS_KEY = 'geo_self_portrait_anim_profiles_v1';
+
+/* ---------------------------
+ * Image profile CRUD
+ * ---------------------------
+ */
 
 export function loadProfiles() {
     try {
@@ -44,34 +50,94 @@ export function refreshProfileSelect(selectEl) {
     }
 }
 
+/* ---------------------------
+ * Animation profile CRUD
+ * ---------------------------
+ */
+
+export function loadAnimProfiles() {
+    try {
+        const raw = localStorage.getItem(ANIM_LS_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return {};
+        return parsed;
+    } catch {
+        return {};
+    }
+}
+
+export function saveAnimProfiles(profiles) {
+    localStorage.setItem(ANIM_LS_KEY, JSON.stringify(profiles, null, 2));
+}
+
+export function deleteAnimProfile(name) {
+    const profiles = loadAnimProfiles();
+    delete profiles[name];
+    saveAnimProfiles(profiles);
+}
+
+export function findAnimProfilesReferencingImage(imageName) {
+    const animProfiles = loadAnimProfiles();
+    const results = [];
+    for (const [animName, profile] of Object.entries(animProfiles)) {
+        if (profile.landmarks.includes(imageName)) {
+            results.push({ animName, profile });
+        }
+    }
+    return results;
+}
+
+export function removeImageFromAnimProfiles(imageName) {
+    const animProfiles = loadAnimProfiles();
+    let changed = false;
+    for (const profile of Object.values(animProfiles)) {
+        const filtered = profile.landmarks.filter(n => n !== imageName);
+        if (filtered.length !== profile.landmarks.length) {
+            profile.landmarks = filtered;
+            changed = true;
+        }
+    }
+    if (changed) saveAnimProfiles(animProfiles);
+}
+
+/* ---------------------------
+ * Starter profiles
+ * ---------------------------
+ */
+
 export function ensureStarterProfiles() {
     const profiles = loadProfiles();
-    if (Object.keys(profiles).length > 0) return;
+    if (Object.keys(profiles).length === 0) {
+        saveProfiles({
+            'Quietly Bent (Starter)': {
+                seed: 'quietly-bent-001',
+                note: 'Coherence that bends without breaking.',
+                aspects: { coherence: 0.78, tension: 0.32, recursion: 0.62, motion: 0.55, vulnerability: 0.58, radiance: 0.70 }
+            },
+            'Night Drift (Starter)': {
+                seed: 'night-drift-001',
+                note: 'Layered revision under dim light.',
+                aspects: { coherence: 0.55, tension: 0.42, recursion: 0.74, motion: 0.78, vulnerability: 0.52, radiance: 0.40 }
+            },
+            'Tender Permeability (Starter)': {
+                seed: 'tender-perm-001',
+                note: 'Boundaries soften; overlap becomes intimacy.',
+                aspects: { coherence: 0.62, tension: 0.22, recursion: 0.58, motion: 0.42, vulnerability: 0.88, radiance: 0.74 }
+            }
+        });
+    }
 
-    const starter = {
-        'Calm Axis (Starter)': {
-            seed: 'calm-axis-001',
-            note: 'Stable symmetry. Gentle closure.',
-            aspects: { coherence: 0.92, tension: 0.12, recursion: 0.46, motion: 0.25, vulnerability: 0.35, radiance: 0.62 }
-        },
-        'Quietly Bent (Starter)': {
-            seed: 'quietly-bent-001',
-            note: 'Coherence that bends without breaking.',
-            aspects: { coherence: 0.78, tension: 0.32, recursion: 0.62, motion: 0.55, vulnerability: 0.58, radiance: 0.70 }
-        },
-        'Night Drift (Starter)': {
-            seed: 'night-drift-001',
-            note: 'Layered revision under dim light.',
-            aspects: { coherence: 0.55, tension: 0.42, recursion: 0.74, motion: 0.78, vulnerability: 0.52, radiance: 0.40 }
-        },
-        'Tender Permeability (Starter)': {
-            seed: 'tender-perm-001',
-            note: 'Boundaries soften; overlap becomes intimacy.',
-            aspects: { coherence: 0.62, tension: 0.22, recursion: 0.58, motion: 0.42, vulnerability: 0.88, radiance: 0.74 }
-        }
-    };
-
-    saveProfiles(starter);
+    const animProfiles = loadAnimProfiles();
+    if (Object.keys(animProfiles).length === 0) {
+        saveAnimProfiles({
+            'Gentle Revision (Starter)': {
+                landmarks: ['Quietly Bent (Starter)', 'Night Drift (Starter)', 'Tender Permeability (Starter)'],
+                durationMs: 7000,
+                note: 'Three modes of interiority cycling through revision.',
+            }
+        });
+    }
 }
 
 /**
@@ -106,10 +172,7 @@ export function renderLoopList(listEl, landmarks, profiles, callbacks, renderThu
             const thumbImg = document.createElement('img');
             thumbImg.className = 'loop-thumb';
             left.appendChild(thumbImg);
-            // Defer rendering to avoid blocking list assembly
-            const seed = p.seed;
-            const aspects = { ...p.aspects };
-            setTimeout(() => renderThumbnail(seed, aspects, thumbImg), 0);
+            renderThumbnail(p.seed, { ...p.aspects }, thumbImg);
         }
 
         const textBlock = document.createElement('div');

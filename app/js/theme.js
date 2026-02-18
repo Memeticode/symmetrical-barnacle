@@ -19,10 +19,34 @@ function applyTheme(pref) {
     }
 }
 
-export function initTheme(selectEl) {
+function positionSlider(switcher, slider, activeBtn) {
+    if (!activeBtn) return;
+    slider.style.width = activeBtn.offsetWidth + 'px';
+    slider.style.transform = `translateX(${activeBtn.offsetLeft - 3}px)`;
+}
+
+export function initTheme(switcherEl) {
+    const slider = switcherEl.querySelector('.theme-slider');
+    const buttons = switcherEl.querySelectorAll('.theme-option');
     const stored = localStorage.getItem(LS_KEY) || 'system';
-    selectEl.value = stored;
+
     applyTheme(stored);
+
+    // Set initial active state
+    buttons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === stored);
+    });
+
+    // Position slider after layout is ready
+    requestAnimationFrame(() => {
+        // Disable transition for initial position
+        slider.style.transition = 'none';
+        const activeBtn = switcherEl.querySelector('.theme-option.active');
+        positionSlider(switcherEl, slider, activeBtn);
+        // Force reflow, then re-enable transition
+        slider.offsetHeight;
+        slider.style.transition = '';
+    });
 
     // Re-apply when OS preference changes (only matters when set to 'system')
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -31,9 +55,21 @@ export function initTheme(selectEl) {
         }
     });
 
-    selectEl.addEventListener('change', () => {
-        const value = selectEl.value;
-        localStorage.setItem(LS_KEY, value);
-        applyTheme(value);
+    // Button click handler
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const value = btn.dataset.theme;
+            localStorage.setItem(LS_KEY, value);
+            applyTheme(value);
+
+            buttons.forEach(b => b.classList.toggle('active', b === btn));
+            positionSlider(switcherEl, slider, btn);
+        });
+    });
+
+    // Reposition slider on resize (button widths may change)
+    window.addEventListener('resize', () => {
+        const activeBtn = switcherEl.querySelector('.theme-option.active');
+        positionSlider(switcherEl, slider, activeBtn);
     });
 }

@@ -4,7 +4,13 @@
       "Bash(npm pack:*)",
       "Bash(tar:*)",
       "Bash(grep:*)",
-      "Bash(npx serve)"
+      "Bash(npx serve)",
+      "Bash(npx serve:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)"
     ]
   }
 }
